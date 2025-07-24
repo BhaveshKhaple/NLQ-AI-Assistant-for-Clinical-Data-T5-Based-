@@ -1,0 +1,154 @@
+# Clinical NLQ AI Assistant Configuration
+
+# Application Settings
+app:
+  name: "Clinical NLQ AI Assistant"
+  version: "1.0.0"
+  debug: true
+  environment: "development"  # development, staging, production
+
+# Database Configuration
+database:
+  host: "localhost"
+  port: 5432
+  name: "clinical_nlq"
+  username: "nlq_user"
+  password: "${DB_PASSWORD}"  # Set via environment variable
+  schema: "clinical_data"
+  pool_size: 10
+  max_overflow: 20
+  echo: false  # Set to true for SQL logging
+
+# T5 Model Configuration
+model:
+  name: "t5-base"  # t5-base, t5-large, custom model path
+  max_source_length: 512
+  max_target_length: 512
+  device: "auto"  # auto, cpu, cuda
+  model_path: "./models/clinical_t5"
+  tokenizer_path: "./models/clinical_t5"
+  confidence_threshold: 0.7
+
+# Training Configuration
+training:
+  learning_rate: 0.0001
+  batch_size: 8
+  num_epochs: 10
+  warmup_steps: 1000
+  weight_decay: 0.01
+  gradient_accumulation_steps: 4
+  save_steps: 500
+  eval_steps: 100
+  output_dir: "./models/checkpoints"
+
+# Streamlit UI Configuration
+ui:
+  title: "Clinical Natural Language Query Assistant"
+  page_icon: "🏥"
+  layout: "wide"
+  sidebar_state: "expanded"
+  max_query_length: 500
+  results_per_page: 50
+  show_sql: true
+  enable_voice: false  # Set to true to enable voice input
+
+# Security Configuration
+security:
+  enable_auth: true
+  session_timeout: 1800  # 30 minutes
+  max_login_attempts: 5
+  password_min_length: 8
+  require_mfa: false
+  audit_queries: true
+  encrypt_results: true
+
+# Performance Configuration
+performance:
+  query_timeout: 30  # seconds
+  max_concurrent_queries: 10
+  cache_results: true
+  cache_ttl: 3600  # 1 hour
+  enable_pagination: true
+  max_export_rows: 10000
+
+# Logging Configuration
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "./logs/nlq_assistant.log"
+  max_bytes: 10485760  # 10MB
+  backup_count: 5
+  audit_file: "./logs/audit.log"
+
+# Clinical Data Standards
+clinical:
+  coding_systems:
+    - "ICD10"
+    - "CPT"
+    - "SNOMED_CT"
+    - "LOINC"
+    - "RxNorm"
+  
+  supported_query_types:
+    - "patient_demographics"
+    - "diagnosis_queries"
+    - "medication_queries"
+    - "lab_results"
+    - "procedures"
+    - "temporal_queries"
+    - "statistical_queries"
+  
+  date_formats:
+    - "%Y-%m-%d"
+    - "%m/%d/%Y"
+    - "%d-%m-%Y"
+
+# Voice Processing (Optional)
+voice:
+  enabled: false
+  service: "azure"  # azure, google, aws
+  subscription_key: "${AZURE_SPEECH_KEY}"
+  region: "eastus"
+  language: "en-US"
+  audio_format: "wav"
+  sample_rate: 16000
+
+# Monitoring and Alerting
+monitoring:
+  enabled: true
+  metrics_port: 8000
+  health_check_endpoint: "/health"
+  prometheus_enabled: false
+  
+  alerts:
+    query_error_threshold: 5  # errors per minute
+    response_time_threshold: 10  # seconds
+    memory_usage_threshold: 80  # percentage
+
+# External Services
+external_services:
+  fhir_server:
+    enabled: false
+    base_url: "https://hapi.fhir.org/baseR4"
+    auth_token: "${FHIR_AUTH_TOKEN}"
+  
+  terminology_service:
+    enabled: false
+    base_url: "https://tx.fhir.org/r4"
+
+# Development Settings
+development:
+  hot_reload: true
+  debug_sql: false
+  mock_data: true
+  sample_data_size: 1000
+  auto_migrate: true
+
+# Production Settings
+production:
+  ssl_required: true
+  secure_cookies: true
+  csrf_protection: true
+  rate_limiting: true
+  backup_enabled: true
+  monitoring_enabled: true

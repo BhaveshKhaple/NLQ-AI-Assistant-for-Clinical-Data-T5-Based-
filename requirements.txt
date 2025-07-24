@@ -1,0 +1,50 @@
+# Machine Learning and NLP
+transformers>=4.20.0
+torch>=1.12.0
+datasets>=2.0.0
+tokenizers>=0.12.0
+huggingface-hub>=0.8.0
+
+# Database
+psycopg2-binary>=2.9.0
+sqlalchemy>=1.4.0
+alembic>=1.8.0
+
+# Data Processing
+pandas>=1.4.0
+numpy>=1.21.0
+scikit-learn>=1.1.0
+scipy>=1.8.0
+
+# Web Framework
+streamlit>=1.10.0
+streamlit-authenticator>=0.2.0
+
+# Visualization
+plotly>=5.0.0
+matplotlib>=3.5.0
+seaborn>=0.11.0
+
+# Utilities
+python-dotenv>=0.20.0
+pyyaml>=6.0
+click>=8.0.0
+tqdm>=4.64.0
+
+# Development and Testing
+pytest>=7.1.0
+pytest-cov>=3.0.0
+black>=22.0.0
+flake8>=4.0.0
+mypy>=0.950
+
+# Optional: Voice Processing
+# azure-cognitiveservices-speech>=1.22.0
+
+# Optional: Caching and Performance
+# redis>=4.3.0
+# celery>=5.2.0
+
+# Optional: Monitoring and Logging
+# prometheus-client>=0.14.0
+# structlog>=22.1.0
