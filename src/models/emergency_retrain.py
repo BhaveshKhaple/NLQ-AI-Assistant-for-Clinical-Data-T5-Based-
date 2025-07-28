@@ -34,36 +34,66 @@ class EmergencyT5Retrainer:
         """Load and prepare training data with consistent format."""
         print("📊 Loading and preparing training data...")
         
-        # Load original training data
-        with open("d:/projects/healthca/data/processed/clinical_nlq_training_data.json", 'r') as f:
-            dataset = json.load(f)
-        
-        data = dataset['data']
+        # Load the new 10K training data
+        try:
+            with open("d:/projects/healthca/data/processed/final_10k_dataset/train_data.json", 'r') as f:
+                data = json.load(f)
+            print(f"   Using new 10K dataset")
+        except FileNotFoundError:
+            # Fallback to original data if 10K dataset not found
+            with open("d:/projects/healthca/data/processed/clinical_nlq_training_data.json", 'r') as f:
+                dataset = json.load(f)
+            data = dataset['data']
+            print(f"   Using original dataset (fallback)")
         print(f"   Loaded {len(data)} examples")
         
-        # Fix data format - remove schema context for consistency
-        formatted_data = []
-        for item in data:
-            formatted_item = {
-                "input_text": f"translate to sql: {item['nlq']}",  # Simple format
-                "target_text": item['sql'],
-                "category": item['category']
-            }
-            formatted_data.append(formatted_item)
+        # Check if data is already in the correct format (new 10K dataset)
+        if isinstance(data, list) and len(data) > 0 and 'input_text' in data[0]:
+            # New 10K dataset format - already properly formatted
+            formatted_data = data
+            print(f"   Data already in correct format")
+        else:
+            # Old format - needs conversion
+            formatted_data = []
+            for item in data:
+                formatted_item = {
+                    "input_text": f"translate to sql: {item['nlq']}",  # Simple format
+                    "target_text": item['sql'],
+                    "category": item.get('category', 'general')
+                }
+                formatted_data.append(formatted_item)
+            print(f"   Converted old format to new format")
         
-        # Create curriculum learning stages
-        basic_categories = ['basic_count', 'basic_filter', 'basic_list']
-        intermediate_categories = ['join_filter', 'aggregation']
+        # Create curriculum learning stages based on query complexity
+        # Analyze queries to categorize them
+        basic_data = []
+        intermediate_data = []
+        advanced_data = []
         
-        basic_data = [item for item in formatted_data if item['category'] in basic_categories]
-        intermediate_data = [item for item in formatted_data if item['category'] in intermediate_categories]
+        for item in formatted_data:
+            sql_upper = item['target_text'].upper()
+            input_lower = item['input_text'].lower()
+            
+            # Basic queries: simple SELECT, COUNT without JOINs
+            if ('COUNT(*)' in sql_upper and 'JOIN' not in sql_upper) or \
+               ('SELECT' in sql_upper and 'JOIN' not in sql_upper and 'GROUP BY' not in sql_upper):
+                basic_data.append(item)
+            # Advanced queries: multiple JOINs, complex conditions
+            elif sql_upper.count('JOIN') > 1 or 'HAVING' in sql_upper or \
+                 ('both' in input_lower and 'and' in input_lower):
+                advanced_data.append(item)
+            # Intermediate: single JOINs, GROUP BY, aggregations
+            else:
+                intermediate_data.append(item)
+        
         all_data = formatted_data
         
         print(f"   Basic queries: {len(basic_data)}")
         print(f"   Intermediate queries: {len(intermediate_data)}")
+        print(f"   Advanced queries: {len(advanced_data)}")
         print(f"   Total queries: {len(all_data)}")
         
-        return basic_data, intermediate_data, all_data
+        return basic_data, intermediate_data, advanced_data
     
     def create_datasets(self, data: List[Dict]) -> tuple:
         """Create train/validation datasets."""
@@ -169,7 +199,7 @@ class EmergencyT5Retrainer:
             logging_steps=10,                # Detailed logging
             
             # Quality control
-            evaluation_strategy="steps",
+            eval_strategy="steps",
             save_strategy="steps",
             load_best_model_at_end=True,
             metric_for_best_model="sql_validity_rate",
@@ -244,7 +274,7 @@ class EmergencyT5Retrainer:
         print("=" * 60)
         
         # Load and prepare data
-        basic_data, intermediate_data, all_data = self.load_and_prepare_data()
+        basic_data, intermediate_data, advanced_data = self.load_and_prepare_data()
         
         # Stage 1: Basic queries only
         print("\n📚 STAGE 1: Basic Queries (Foundation)")
@@ -257,8 +287,9 @@ class EmergencyT5Retrainer:
         combined_train, combined_val = self.create_datasets(combined_data)
         stage2_path = self.train_stage(combined_train, combined_val, "stage2_intermediate", learning_rate=5e-5)
         
-        # Stage 3: All queries
+        # Stage 3: All queries (including advanced)
         print("\n📚 STAGE 3: All Queries (Final)")
+        all_data = basic_data + intermediate_data + advanced_data
         all_train, all_val = self.create_datasets(all_data)
         final_path = self.train_stage(all_train, all_val, "stage3_final", learning_rate=3e-5)
         

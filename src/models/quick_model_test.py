@@ -13,7 +13,7 @@ from collections import defaultdict
 import random
 
 class QuickClinicalT5Tester:
-    def __init__(self, model_path: str = "d:/projects/healthca/models/trained/t5_clinical_model/final_model"):
+    def __init__(self, model_path: str = "d:/projects/healthca/models/trained/t5_clinical_model/final model last"):
         """Initialize the model tester."""
         self.model_path = model_path
         self.model = None
@@ -131,7 +131,7 @@ class QuickClinicalT5Tester:
         print(f"📊 Evaluating on {sample_size} test examples...")
         
         # Load test data
-        test_data_path = "d:/projects/healthca/data/processed/test_data.json"
+        test_data_path = "d:/projects/healthca/data/processed/final_merged_dataset/test_data.json"
         with open(test_data_path, 'r', encoding='utf-8') as f:
             test_data = json.load(f)
         
@@ -152,9 +152,9 @@ class QuickClinicalT5Tester:
             if i % 10 == 0:
                 print(f"  Progress: {i}/{len(sample_data)}")
             
-            nlq = example.get('original_nlq', example['input_text'].replace('translate to sql: ', ''))
+            nlq = example.get('original_nlq', example['input_text'].replace('translate to sql: ', '').split(' Database Schema:')[0])
             expected_sql = example['target_text']
-            category = example['category']
+            category = example.get('category', 'general')
             
             generated_sql = self.generate_sql(nlq)
             

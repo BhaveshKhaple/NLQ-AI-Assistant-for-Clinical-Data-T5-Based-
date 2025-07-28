@@ -7,7 +7,7 @@ An AI-powered assistant that allows users to ask clinical questions in natural l
 Bridge clinicians' everyday needs with complex structured data, streamlining EHR access and analytics through natural language processing.
 
 ## Tech Stack
-- **Programming**: Python 3.10+
+- **Programming**: Python 3.10+only 
 - **ML/NLP**: HuggingFace Transformers, PyTorch (T5 model)
 - **Data Handling**: pandas, numpy, scikit-learn
 - **Database**: PostgreSQL, psycopg2, SQLAlchemy
