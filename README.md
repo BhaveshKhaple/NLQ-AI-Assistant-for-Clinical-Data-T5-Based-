@@ -52,5 +52,4 @@ healthca/
 4. Run initial setup scripts
 5. Launch Streamlit application
 
-## Contributing
-Please refer to the development phases and documentation in the `docs/` directory.
+streamlit run src\ui\streamlit_app.py

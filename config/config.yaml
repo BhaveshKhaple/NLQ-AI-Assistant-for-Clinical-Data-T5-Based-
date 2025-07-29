@@ -9,12 +9,12 @@ app:
 
 # Database Configuration
 database:
-  host: "localhost"
+  host: "${DB_HOST}"
   port: 5432
-  name: "clinical_nlq"
-  username: "nlq_user"
+  name: "${DB_NAME}"
+  username: "${DB_USERNAME}"
   password: "${DB_PASSWORD}"  # Set via environment variable
-  schema: "clinical_data"
+  schema: "${DB_SCHEMA}"
   pool_size: 10
   max_overflow: 20
   echo: false  # Set to true for SQL logging
