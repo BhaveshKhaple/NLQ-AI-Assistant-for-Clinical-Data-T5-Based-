@@ -31,34 +31,34 @@ After comprehensive testing of both models, **NEITHER MODEL IS PRODUCTION-READY*
 
 ## 🔍 What Went Wrong in the "Upgrade"?
 
-### 1. **Architecture Overkill**
-- **Previous**: T5-small (60M parameters) - appropriate for task
-- **Current**: T5-base (222M parameters) - massive overkill
-- **Result**: Overfitting, slower inference, worse performance
+      ### 1. **Architecture Overkill**
+      - **Previous**: T5-small (60M parameters) - appropriate for task
+      - **Current**: T5-base (222M parameters) - massive overkill
+      - **Result**: Overfitting, slower inference, worse performance
 
-### 2. **Training Issues**
-From the training logs (`trainer_state.json`):
-- **20 epochs** of training (excessive)
-- **22,940 training steps** (very long training)
-- **Best checkpoint at step 10,323** (early in training)
-- **Continued training degraded performance**
+      ### 2. **Training Issues**    
+      From the training logs (`trainer_state.json`):
+      - **20 epochs** of training (excessive)
+      - **22,940 training steps** (very long training)
+      - **Best checkpoint at step 10,323** (early in training)
+      - **Continued training degraded performance**
 
-### 3. **Multilingual Contamination**
-The current model shows **German language mixing**:
-```sql
-SELECT sowohl Diabetes als auch Hypertension als Symptome.
-SELECT WHERE IST DER durchschnittliche Aufwand pro Begegnung?
-SELECT sämtliche Medikamente für den Patienten ID 123 auf.
-```
-This indicates:
-- Training data contamination
-- Or base model multilingual interference
+      ### 3. **Multilingual Contamination**
+      The current model shows **German language mixing**:
+      ```sql
+      SELECT sowohl Diabetes als auch Hypertension als Symptome.
+      SELECT WHERE IST DER durchschnittliche Aufwand pro Begegnung?
+      SELECT sämtliche Medikamente für den Patienten ID 123 auf.
+      ```
+      This indicates:
+      - Training data contamination
+      - Or base model multilingual interference
 
-### 4. **Generation Quality Degradation**
-- **Previous**: Short, focused (though wrong) outputs
-- **Current**: Long, repetitive, multilingual outputs
-- **Previous**: `SELECT COUNT(*) as patients?` (close to correct)
-- **Current**: `SELECT HOW MANY PATIENTS DO WE HAVE?` (just repeats question)
+      ### 4. **Generation Quality Degradation**
+      - **Previous**: Short, focused (though wrong) outputs
+      - **Current**: Long, repetitive, multilingual outputs
+      - **Previous**: `SELECT COUNT(*) as patients?` (close to correct)
+      - **Current**: `SELECT HOW MANY PATIENTS DO WE HAVE?` (just repeats question)
 
 ---
 
