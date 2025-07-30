@@ -29,6 +29,7 @@ from ui.session_manager import SessionManager
 from ui.activity_logger import ActivityLogger
 from ui.ui_components import UIComponents
 from ui.error_handler import UIErrorHandler
+from ui.database_explorer import DatabaseExplorer
 
 # Page configuration
 st.set_page_config(
@@ -52,6 +53,7 @@ class ClinicalNLQApp:
         self.activity_logger = ActivityLogger()
         self.ui_components = UIComponents()
         self.error_handler = UIErrorHandler()
+        self.database_explorer = DatabaseExplorer()
         
         # Initialize session state
         self._initialize_session_state()
@@ -606,15 +608,18 @@ class ClinicalNLQApp:
             self.render_sidebar()
             
             # Main content
-            tab1, tab2, tab3 = st.tabs(["🔍 Query Interface", "💡 Examples", "📊 Analytics"])
+            tab1, tab2, tab3, tab4 = st.tabs(["🔍 Query Interface", "🗄️ Database Explorer", "💡 Examples", "📊 Analytics"])
             
             with tab1:
                 self.render_main_interface()
             
             with tab2:
-                self.render_example_queries()
+                self.database_explorer.render_full_explorer()
             
             with tab3:
+                self.render_example_queries()
+            
+            with tab4:
                 self.render_analytics()
             
         except Exception as e:
@@ -623,6 +628,10 @@ class ClinicalNLQApp:
                 error=str(e),
                 context={'component': 'main_app'}
             )
+        finally:
+            # Cleanup database connections
+            if hasattr(self, 'database_explorer'):
+                self.database_explorer.cleanup()
     
     def render_analytics(self):
         """Render analytics and monitoring dashboard."""

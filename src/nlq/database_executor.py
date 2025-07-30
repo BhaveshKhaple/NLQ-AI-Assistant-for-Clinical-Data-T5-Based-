@@ -373,11 +373,12 @@ class DatabaseExecutor:
                     logger.warning(f"⚠️ Results truncated to {max_rows} rows")
                 
                 # Get column information
+                # result.cursor.description contains tuples: (name, type_code, display_size, internal_size, precision, scale, null_ok)
                 columns = [
                     {
-                        'name': col.name,
-                        'type': str(col.type),
-                        'nullable': col.nullable if hasattr(col, 'nullable') else True
+                        'name': col[0],  # Column name
+                        'type': str(col[1]) if col[1] is not None else 'unknown',  # Type code
+                        'nullable': col[6] if len(col) > 6 and col[6] is not None else True  # null_ok flag
                     }
                     for col in result.cursor.description
                 ] if result.cursor.description else []

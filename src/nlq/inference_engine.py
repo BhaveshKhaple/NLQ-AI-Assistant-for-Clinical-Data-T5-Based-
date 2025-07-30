@@ -12,6 +12,7 @@ from typing import Dict, List, Optional, Tuple, Any
 from pathlib import Path
 from transformers import T5ForConditionalGeneration, T5Tokenizer
 import yaml
+from .fallback_sql_generator import FallbackSQLGenerator
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -46,6 +47,9 @@ class ClinicalInferenceEngine:
         # Schema context for better SQL generation
         self.schema_context = self._build_schema_context()
         
+        # Initialize fallback generator
+        self.fallback_generator = FallbackSQLGenerator()
+        
         logger.info("🔧 Clinical Inference Engine initialized")
     
     def _load_config(self, config_path: str) -> Dict[str, Any]:
@@ -69,21 +73,20 @@ class ClinicalInferenceEngine:
     
     def _build_schema_context(self) -> str:
         """
-        Build schema context string to help model understand database structure.
-        This will be prepended to queries for better SQL generation.
+        Build schema context string to match the training data format.
+        This will be appended to queries for better SQL generation.
         """
-        schema_context = """
-Database Schema Context:
-- clinical_data.patients: Patient demographics and basic info
-- clinical_data.conditions: Medical conditions and diagnoses  
-- clinical_data.medications: Prescribed medications
-- clinical_data.encounters: Healthcare visits and appointments
-- clinical_data.providers: Healthcare providers and practitioners
-- clinical_data.organizations: Healthcare organizations and facilities
-- clinical_data.payers: Insurance and payment information
-
-Always use 'clinical_data.' schema prefix in SQL queries.
-"""
+        schema_context = """Database Schema: clinical_data
+Tables: patients, organizations, providers, encounters, conditions, medications, procedures, observations, allergies, careplans, immunizations, claims, payers
+Key relationships: 
+- patients.id -> encounters.patient_id
+- providers.id -> encounters.provider_id  
+- organizations.id -> providers.organization_id
+- encounters.id -> conditions.encounter_id
+- encounters.id -> medications.encounter_id
+- encounters.id -> procedures.encounter_id
+- encounters.id -> observations.encounter_id
+- payers.id -> claims.payer_id"""
         return schema_context.strip()
     
     def load_model(self, model_path: Optional[str] = None) -> bool:
@@ -197,9 +200,9 @@ Always use 'clinical_data.' schema prefix in SQL queries.
             temperature = temperature or 1.0
             do_sample = do_sample if do_sample is not None else False
             
-            # Format input with schema context if requested
+            # Format input to match training data format
             if include_schema_context:
-                input_text = f"{self.schema_context}\n\ntranslate to sql: {nlq}"
+                input_text = f"translate to sql: {nlq} {self.schema_context}"
             else:
                 input_text = f"translate to sql: {nlq}"
             
@@ -250,10 +253,39 @@ Always use 'clinical_data.' schema prefix in SQL queries.
             # Validate generated SQL
             validation_result = self._validate_sql(generated_sql)
             
-            if validation_result['is_valid']:
-                self.generation_stats['successful_generations'] += 1
+            # If T5 model generated invalid SQL, try fallback
+            if not validation_result['is_valid']:
+                logger.warning(f"⚠️ T5 model generated invalid SQL, trying fallback...")
+                fallback_result = self.fallback_generator.generate_sql(nlq)
+                
+                if fallback_result['validation']['is_valid']:
+                    logger.info(f"✅ Fallback generator produced valid SQL")
+                    self.generation_stats['successful_generations'] += 1
+                    
+                    # Merge results
+                    result = {
+                        'nlq': nlq,
+                        'generated_sql': fallback_result['generated_sql'],
+                        'generation_time': generation_time,
+                        'generation_config': generation_config,
+                        'validation': fallback_result['validation'],
+                        'metadata': {
+                            'method': 'fallback_after_t5_failure',
+                            'original_t5_sql': generated_sql,
+                            'original_t5_errors': validation_result['errors'],
+                            'fallback_method': fallback_result['method'],
+                            'fallback_confidence': fallback_result['confidence'],
+                            'input_length': len(input_text),
+                            'schema_context_used': include_schema_context
+                        }
+                    }
+                    
+                    logger.info(f"✅ Fallback SQL generated: {fallback_result['generated_sql'][:100]}...")
+                    return result
+                else:
+                    self.generation_stats['failed_generations'] += 1
             else:
-                self.generation_stats['failed_generations'] += 1
+                self.generation_stats['successful_generations'] += 1
             
             result = {
                 'nlq': nlq,
@@ -262,6 +294,7 @@ Always use 'clinical_data.' schema prefix in SQL queries.
                 'generation_config': generation_config,
                 'validation': validation_result,
                 'metadata': {
+                    'method': 't5_model',
                     'input_length': len(input_text),
                     'output_length': len(generated_sql),
                     'tokens_generated': len(outputs[0]),
