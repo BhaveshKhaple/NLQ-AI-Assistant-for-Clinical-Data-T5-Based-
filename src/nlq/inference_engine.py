@@ -13,6 +13,8 @@ from pathlib import Path
 from transformers import T5ForConditionalGeneration, T5Tokenizer
 import yaml
 from .fallback_sql_generator import FallbackSQLGenerator
+from .query_preprocessor import QueryPreprocessor
+from .intelligent_fallback import IntelligentFallback
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -47,8 +49,10 @@ class ClinicalInferenceEngine:
         # Schema context for better SQL generation
         self.schema_context = self._build_schema_context()
         
-        # Initialize fallback generator
+        # Initialize fallback generators and preprocessor
         self.fallback_generator = FallbackSQLGenerator()
+        self.query_preprocessor = QueryPreprocessor()
+        self.intelligent_fallback = IntelligentFallback()
         
         logger.info("🔧 Clinical Inference Engine initialized")
     
@@ -194,6 +198,16 @@ Key relationships:
         start_time = time.time()
         
         try:
+            # Step 1: Preprocess the query to match training patterns
+            preprocessing_result = self.query_preprocessor.preprocess_query(nlq)
+            
+            # Use preprocessed query if mapping was applied with high confidence
+            if preprocessing_result['mapping_applied'] and preprocessing_result['confidence'] > 0.8:
+                processed_nlq = preprocessing_result['preprocessed_query']
+                logger.info(f"🔄 Query preprocessed: '{nlq}' -> '{processed_nlq}'")
+            else:
+                processed_nlq = nlq
+            
             # Use config defaults if parameters not provided
             max_length = max_length or self.config.get('model', {}).get('max_target_length', 512)
             num_beams = num_beams or 4
@@ -202,9 +216,9 @@ Key relationships:
             
             # Format input to match training data format
             if include_schema_context:
-                input_text = f"translate to sql: {nlq} {self.schema_context}"
+                input_text = f"translate to sql: {processed_nlq} {self.schema_context}"
             else:
-                input_text = f"translate to sql: {nlq}"
+                input_text = f"translate to sql: {processed_nlq}"
             
             # Tokenize input
             inputs = self.tokenizer(
@@ -253,10 +267,15 @@ Key relationships:
             # Validate generated SQL
             validation_result = self._validate_sql(generated_sql)
             
-            # If T5 model generated invalid SQL, try fallback
+            # If T5 model generated invalid SQL, try intelligent fallback first
             if not validation_result['is_valid']:
-                logger.warning(f"⚠️ T5 model generated invalid SQL, trying fallback...")
-                fallback_result = self.fallback_generator.generate_sql(nlq)
+                logger.warning(f"⚠️ T5 model generated invalid SQL, trying intelligent fallback...")
+                fallback_result = self.intelligent_fallback.generate_sql(nlq)
+                
+                # If intelligent fallback also fails, try basic fallback
+                if not fallback_result['validation']['is_valid']:
+                    logger.warning(f"⚠️ Intelligent fallback failed, trying basic fallback...")
+                    fallback_result = self.fallback_generator.generate_sql(nlq)
                 
                 if fallback_result['validation']['is_valid']:
                     logger.info(f"✅ Fallback generator produced valid SQL")
@@ -276,7 +295,8 @@ Key relationships:
                             'fallback_method': fallback_result['method'],
                             'fallback_confidence': fallback_result['confidence'],
                             'input_length': len(input_text),
-                            'schema_context_used': include_schema_context
+                            'schema_context_used': include_schema_context,
+                            'preprocessing': preprocessing_result
                         }
                     }
                     
@@ -298,7 +318,8 @@ Key relationships:
                     'input_length': len(input_text),
                     'output_length': len(generated_sql),
                     'tokens_generated': len(outputs[0]),
-                    'schema_context_used': include_schema_context
+                    'schema_context_used': include_schema_context,
+                    'preprocessing': preprocessing_result
                 }
             }
             
