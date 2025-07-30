@@ -37,7 +37,13 @@ class FallbackSQLGenerator:
     def _build_patterns(self) -> List[Dict[str, Any]]:
         """Build regex patterns for common query types."""
         return [
-            # Count queries
+            # Vaccine-related queries (more specific, should come first)
+            {
+                'pattern': r'how many patients?.*(vaccine|vaccination|immuniz)',
+                'template': 'SELECT COUNT(DISTINCT p.id) as total FROM clinical_data.patients p JOIN clinical_data.immunizations i ON p.id::text = i.patient WHERE i.description ILIKE \'%{vaccine_type}%\'',
+                'extract_vaccine': True
+            },
+            # Count queries (general pattern)
             {
                 'pattern': r'how many (patients?|conditions?|medications?|encounters?)',
                 'template': 'SELECT COUNT(*) as total FROM clinical_data.{table}',
@@ -168,6 +174,20 @@ class FallbackSQLGenerator:
             operator = '>' if direction in ['over', 'above'] else '<'
             return template.format(operator=operator, age=age)
         
+        # Handle vaccine extraction
+        if pattern_info.get('extract_vaccine'):
+            # Extract vaccine type from the query
+            vaccine_keywords = ['hpv', 'flu', 'covid', 'hepatitis', 'measles', 'polio', 'tetanus']
+            vaccine_type = 'vaccine'  # default
+            
+            nlq_lower = nlq.lower()
+            for keyword in vaccine_keywords:
+                if keyword in nlq_lower:
+                    vaccine_type = keyword
+                    break
+            
+            return template.format(vaccine_type=vaccine_type)
+        
         return template
     
     def _generate_default_fallback(self, nlq: str) -> Dict[str, Any]:
@@ -188,6 +208,7 @@ class FallbackSQLGenerator:
         """Get list of supported query patterns."""
         return [
             "How many patients/conditions/medications?",
+            "How many patients received [vaccine type]?",
             "Show/List all patients/conditions/medications",
             "Most common conditions/medications/procedures",
             "High-cost patients over $X",

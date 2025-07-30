@@ -350,6 +350,26 @@ Key relationships:
         if 'clinical_data.' not in sql:
             warnings.append("Query should use 'clinical_data.' schema prefix")
         
+        # Check for valid table names
+        valid_tables = [
+            'clinical_data.patients', 'clinical_data.conditions', 'clinical_data.medications',
+            'clinical_data.encounters', 'clinical_data.providers', 'clinical_data.organizations',
+            'clinical_data.immunizations', 'clinical_data.procedures', 'clinical_data.observations',
+            'clinical_data.allergies', 'clinical_data.claims', 'clinical_data.payers',
+            'clinical_data.care_plans', 'clinical_data.careplans', 'clinical_data.devices',
+            'clinical_data.supplies', 'clinical_data.imaging_studies', 'clinical_data.payer_transitions',
+            'clinical_data.claims_transactions'
+        ]
+        
+        # Extract table references from SQL
+        import re
+        table_pattern = r'clinical_data\.\w+'
+        found_tables = re.findall(table_pattern, sql)
+        
+        for table in found_tables:
+            if table not in valid_tables:
+                errors.append(f"Invalid table reference: '{table}'")
+        
         # Check balanced parentheses
         if sql.count('(') != sql.count(')'):
             errors.append("Unbalanced parentheses")
