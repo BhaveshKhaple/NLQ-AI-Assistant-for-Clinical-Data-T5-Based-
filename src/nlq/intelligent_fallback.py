@@ -122,6 +122,99 @@ class IntelligentFallback:
                 ],
                 'base_sql': 'SELECT COUNT(*) as total FROM clinical_data.organizations',
                 'filters': []
+            },
+            
+            # New patterns based on the provided examples
+            'count_patients_with_condition': {
+                'patterns': [
+                    r'how many patients?.*(diagnosed with|have|with)\s+([a-zA-Z\s]+)',
+                    r'patients?.*(diagnosed with|have|with)\s+([a-zA-Z\s]+)'
+                ],
+                'base_sql': 'SELECT COUNT(DISTINCT patient) as total FROM clinical_data.conditions',
+                'filters': ['condition']
+            },
+            'medications_by_year': {
+                'patterns': [
+                    r'(list|show).*(all )?medications?.*(prescribed|given).*in\s+(\d{4})',
+                    r'medications?.*(prescribed|given).*in\s+(\d{4})'
+                ],
+                'base_sql': 'SELECT * FROM clinical_data.medications',
+                'filters': ['year']
+            },
+            'procedures_by_year': {
+                'patterns': [
+                    r'how many procedures?.*(done|performed).*in\s+(\d{4})',
+                    r'procedures?.*(done|performed).*in\s+(\d{4})'
+                ],
+                'base_sql': 'SELECT COUNT(*) as total FROM clinical_data.procedures',
+                'filters': ['year']
+            },
+            'top_conditions': {
+                'patterns': [
+                    r'top\s+(\d+).*most (common|frequent).*(conditions?|diagnoses)',
+                    r'most (common|frequent).*(conditions?|diagnoses)',
+                    r'(common|frequent).*(conditions?|diagnoses)'
+                ],
+                'base_sql': 'SELECT description, COUNT(*) AS frequency FROM clinical_data.conditions GROUP BY description ORDER BY frequency DESC',
+                'filters': ['limit']
+            },
+            'top_medications': {
+                'patterns': [
+                    r'top\s+(\d+).*most (common|frequent).*(medications?|drugs?)',
+                    r'most (common|frequent).*(medications?|drugs?)',
+                    r'(common|frequent).*(medications?|drugs?)'
+                ],
+                'base_sql': 'SELECT description, COUNT(*) AS frequency FROM clinical_data.medications GROUP BY description ORDER BY frequency DESC',
+                'filters': ['limit']
+            },
+            'top_vaccines': {
+                'patterns': [
+                    r'top\s+(\d+).*most (common|frequent).*(vaccines?|immunizations?)',
+                    r'most (common|frequent).*(vaccines?|immunizations?)',
+                    r'(frequent|common).*(vaccines?|immunizations?)'
+                ],
+                'base_sql': 'SELECT description, COUNT(*) AS frequency FROM clinical_data.immunizations GROUP BY description ORDER BY frequency DESC',
+                'filters': ['limit']
+            },
+            'list_distinct_vaccines': {
+                'patterns': [
+                    r'(list|show).*(all )?(distinct )?vaccines?',
+                    r'(list|show).*(all )?(distinct )?immunizations?'
+                ],
+                'base_sql': 'SELECT DISTINCT description FROM clinical_data.immunizations ORDER BY description',
+                'filters': []
+            },
+            'procedures_with_condition': {
+                'patterns': [
+                    r'(list|show).*(all )?procedures?.*(involving|with|for)\s+([a-zA-Z\s]+)',
+                    r'procedures?.*(involving|with|for)\s+([a-zA-Z\s]+)'
+                ],
+                'base_sql': 'SELECT DISTINCT description FROM clinical_data.procedures',
+                'filters': ['condition_filter']
+            },
+            'procedures_without_condition': {
+                'patterns': [
+                    r'(list|show).*(all )?procedures?.*(not involving|without|not for)\s+([a-zA-Z\s]+)',
+                    r'procedures?.*(not involving|without|not for)\s+([a-zA-Z\s]+)'
+                ],
+                'base_sql': 'SELECT DISTINCT description FROM clinical_data.procedures',
+                'filters': ['condition_filter_not']
+            },
+            'payers_with_threshold': {
+                'patterns': [
+                    r'(which|what) payers?.*(covered|have).*more than\s+(\d+)',
+                    r'payers?.*(covered|have).*more than\s+(\d+)'
+                ],
+                'base_sql': 'SELECT name FROM clinical_data.payers',
+                'filters': ['threshold']
+            },
+            'patients_with_multiple_immunizations': {
+                'patterns': [
+                    r'how many patients?.*(received|got|had).*more than\s+(\d+).*(immunizations?|vaccines?)',
+                    r'patients?.*(received|got|had).*more than\s+(\d+).*(immunizations?|vaccines?)'
+                ],
+                'base_sql': 'SELECT COUNT(*) as total FROM (SELECT patient FROM clinical_data.immunizations GROUP BY patient HAVING COUNT(*) > {threshold}) AS patient_counts',
+                'filters': ['threshold']
             }
         }
     
@@ -173,6 +266,44 @@ class IntelligentFallback:
                     r'(?:state|city)\s+([A-Za-z\s]+?)(?:\s|$|[?.])'
                 ],
                 'filter_template': "WHERE (state ILIKE '%{value}%' OR city ILIKE '%{value}%')"
+            },
+            'year': {
+                'patterns': [
+                    r'in\s+(\d{4})',
+                    r'during\s+(\d{4})',
+                    r'(\d{4})'
+                ],
+                'filter_template': "WHERE EXTRACT(YEAR FROM CAST(start AS DATE)) = {value}"
+            },
+            'limit': {
+                'patterns': [
+                    r'top\s+(\d+)',
+                    r'first\s+(\d+)',
+                    r'(\d+)\s+most'
+                ],
+                'filter_template': "LIMIT {value}"
+            },
+            'threshold': {
+                'patterns': [
+                    r'more than\s+(\d+)',
+                    r'greater than\s+(\d+)',
+                    r'over\s+(\d+)'
+                ],
+                'filter_template': ""  # Handled specially in SQL building
+            },
+            'condition_filter': {
+                'patterns': [
+                    r'(?:involving|with|for)\s+([a-zA-Z\s]+?)(?:\s|$|[?.])',
+                    r'(?:related to|about)\s+([a-zA-Z\s]+?)(?:\s|$|[?.])'
+                ],
+                'filter_template': "WHERE description ILIKE '%{value}%'"
+            },
+            'condition_filter_not': {
+                'patterns': [
+                    r'(?:not involving|without|not for)\s+([a-zA-Z\s]+?)(?:\s|$|[?.])',
+                    r'(?:not related to|not about)\s+([a-zA-Z\s]+?)(?:\s|$|[?.])'
+                ],
+                'filter_template': "WHERE description NOT ILIKE '%{value}%'"
             }
         }
     
@@ -314,8 +445,9 @@ class IntelligentFallback:
         base_sql = intent_data['base_sql']
         required_filters = intent_data.get('filters', [])
         
-        # Build WHERE clauses
+        # Build WHERE clauses and other SQL modifications
         where_clauses = []
+        sql_modifications = []
         
         for filter_type in required_filters:
             if filter_type in entities and filter_type in self.entity_extractors:
@@ -333,10 +465,32 @@ class IntelligentFallback:
                         operator = '='
                     
                     where_clause = filter_template.format(operator=operator, value=age_value)
-                else:
-                    where_clause = filter_template.format(value=entities[filter_type])
+                    where_clauses.append(where_clause)
                 
-                where_clauses.append(where_clause)
+                elif filter_type == 'limit':
+                    # Handle LIMIT clause
+                    limit_value = entities[filter_type]
+                    sql_modifications.append(f"LIMIT {limit_value}")
+                
+                elif filter_type == 'threshold':
+                    # Handle threshold in HAVING or WHERE clauses
+                    threshold_value = entities[filter_type]
+                    if 'payers' in intent:
+                        where_clauses.append(f"WHERE unique_customers > {threshold_value}")
+                    elif 'immunizations' in intent:
+                        # This is handled in the base SQL template
+                        base_sql = base_sql.replace('{threshold}', threshold_value)
+                
+                elif filter_type == 'year':
+                    # Handle year filtering
+                    year_value = entities[filter_type]
+                    where_clause = filter_template.format(value=year_value)
+                    where_clauses.append(where_clause)
+                
+                elif filter_template:
+                    # Standard filter handling
+                    where_clause = filter_template.format(value=entities[filter_type])
+                    where_clauses.append(where_clause)
         
         # Combine base SQL with filters
         if where_clauses:
@@ -347,10 +501,17 @@ class IntelligentFallback:
         else:
             sql = base_sql
         
-        # Add LIMIT for list queries
-        if intent.startswith('list_'):
-            if 'LIMIT' not in sql:
-                sql += ' LIMIT 100'
+        # Add SQL modifications (LIMIT, etc.)
+        for modification in sql_modifications:
+            sql += ' ' + modification
+        
+        # Add default LIMIT for list queries if not already specified
+        if intent.startswith('list_') and 'LIMIT' not in sql:
+            sql += ' LIMIT 100'
+        
+        # Add default LIMIT for top queries if not already specified
+        if intent.startswith('top_') and 'LIMIT' not in sql:
+            sql += ' LIMIT 5'  # Default top 5
         
         return sql
     

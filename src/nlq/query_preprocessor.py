@@ -145,6 +145,92 @@ class QueryPreprocessor:
                 variables={},
                 confidence=0.85
             ),
+            
+            # New patterns based on provided examples
+            QueryMapping(
+                pattern=r'how many patients?.*(diagnosed with|have)\s+([a-zA-Z\s]+)',
+                template='How many patients were diagnosed with {condition}?',
+                variables={'condition': ''},
+                confidence=0.9
+            ),
+            QueryMapping(
+                pattern=r'(list|show).*(all )?medications?.*(prescribed|given).*in\s+(\d{4})',
+                template='List all medications prescribed in {year}',
+                variables={'year': ''},
+                confidence=0.9
+            ),
+            QueryMapping(
+                pattern=r'how many procedures?.*(done|performed).*in\s+(\d{4})',
+                template='How many procedures were done in {year}?',
+                variables={'year': ''},
+                confidence=0.9
+            ),
+            QueryMapping(
+                pattern=r'top\s+(\d+).*most (common|frequent).*(conditions?|diagnoses)',
+                template='Top {number} most common conditions',
+                variables={'number': ''},
+                confidence=0.95
+            ),
+            QueryMapping(
+                pattern=r'most (common|frequent).*(conditions?|diagnoses)',
+                template='Most common conditions',
+                variables={},
+                confidence=0.9
+            ),
+            QueryMapping(
+                pattern=r'top\s+(\d+).*most (common|frequent).*(medications?|drugs?)',
+                template='Top {number} most common medications',
+                variables={'number': ''},
+                confidence=0.95
+            ),
+            QueryMapping(
+                pattern=r'most (common|frequent).*(medications?|drugs?)',
+                template='Most common medications',
+                variables={},
+                confidence=0.9
+            ),
+            QueryMapping(
+                pattern=r'top\s+(\d+).*most (common|frequent).*(vaccines?|immunizations?)',
+                template='Top {number} most frequent vaccines',
+                variables={'number': ''},
+                confidence=0.95
+            ),
+            QueryMapping(
+                pattern=r'most (common|frequent).*(vaccines?|immunizations?)',
+                template='Most frequent vaccines',
+                variables={},
+                confidence=0.9
+            ),
+            QueryMapping(
+                pattern=r'(list|show).*(all )?(distinct )?vaccines?',
+                template='List all distinct vaccines',
+                variables={},
+                confidence=0.9
+            ),
+            QueryMapping(
+                pattern=r'(list|show).*(all )?procedures?.*(involving|with|for)\s+([a-zA-Z\s]+)',
+                template='List all procedures involving {condition}',
+                variables={'condition': ''},
+                confidence=0.9
+            ),
+            QueryMapping(
+                pattern=r'(list|show).*(all )?procedures?.*(not involving|without)\s+([a-zA-Z\s]+)',
+                template='List all procedures not involving {condition}',
+                variables={'condition': ''},
+                confidence=0.9
+            ),
+            QueryMapping(
+                pattern=r'(which|what) payers?.*(covered|have).*more than\s+(\d+)',
+                template='Which payers covered more than {number} patients?',
+                variables={'number': ''},
+                confidence=0.9
+            ),
+            QueryMapping(
+                pattern=r'how many patients?.*(received|got|had).*more than\s+(\d+).*(immunizations?|vaccines?)',
+                template='How many patients received more than {number} immunizations?',
+                variables={'number': ''},
+                confidence=0.9
+            ),
         ]
     
     def _build_medical_terms(self) -> Dict[str, List[str]]:
@@ -280,16 +366,39 @@ class QueryPreprocessor:
                     break
         
         if 'condition' in mapping.variables:
-            for condition in self.medical_terms['conditions']:
-                if condition in query.lower():
-                    variables['condition'] = condition
-                    break
+            # Try to extract from pattern match first
+            condition_match = re.search(r'(?:diagnosed with|have|with|involving|for)\s+([a-zA-Z\s]+?)(?:\s|$|[?.])', query, re.IGNORECASE)
+            if condition_match:
+                variables['condition'] = condition_match.group(1).strip()
+            else:
+                # Fall back to predefined conditions
+                for condition in self.medical_terms['conditions']:
+                    if condition in query.lower():
+                        variables['condition'] = condition
+                        break
         
         if 'medication' in mapping.variables:
             for medication in self.medical_terms['medications']:
                 if medication in query.lower():
                     variables['medication'] = medication
                     break
+        
+        # Extract year
+        if 'year' in mapping.variables:
+            year_match = re.search(r'(\d{4})', query)
+            if year_match:
+                variables['year'] = year_match.group(1)
+        
+        # Extract number/limit
+        if 'number' in mapping.variables:
+            number_match = re.search(r'(?:top|first)\s+(\d+)', query, re.IGNORECASE)
+            if number_match:
+                variables['number'] = number_match.group(1)
+            else:
+                # Look for "more than X"
+                more_than_match = re.search(r'more than\s+(\d+)', query, re.IGNORECASE)
+                if more_than_match:
+                    variables['number'] = more_than_match.group(1)
         
         return variables
     

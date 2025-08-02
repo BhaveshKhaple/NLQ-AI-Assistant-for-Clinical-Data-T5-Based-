@@ -43,6 +43,50 @@ class FallbackSQLGenerator:
                 'template': 'SELECT COUNT(DISTINCT p.id) as total FROM clinical_data.patients p JOIN clinical_data.immunizations i ON p.id::text = i.patient WHERE i.description ILIKE \'%{vaccine_type}%\'',
                 'extract_vaccine': True
             },
+            # Condition count queries
+            {
+                'pattern': r'how many patients?.*(diagnosed with|have)\s+([a-zA-Z\s]+)',
+                'template': 'SELECT COUNT(DISTINCT patient) as total FROM clinical_data.conditions WHERE description ILIKE \'%{condition}%\'',
+                'extract_condition': True
+            },
+            # Top N queries
+            {
+                'pattern': r'top\s+(\d+).*most (common|frequent).*(conditions?|diagnoses)',
+                'template': 'SELECT description, COUNT(*) AS frequency FROM clinical_data.conditions GROUP BY description ORDER BY frequency DESC LIMIT {limit}',
+                'extract_limit': True
+            },
+            {
+                'pattern': r'top\s+(\d+).*most (common|frequent).*(medications?|drugs?)',
+                'template': 'SELECT description, COUNT(*) AS frequency FROM clinical_data.medications GROUP BY description ORDER BY frequency DESC LIMIT {limit}',
+                'extract_limit': True
+            },
+            {
+                'pattern': r'top\s+(\d+).*most (common|frequent).*(vaccines?|immunizations?)',
+                'template': 'SELECT description, COUNT(*) AS frequency FROM clinical_data.immunizations GROUP BY description ORDER BY frequency DESC LIMIT {limit}',
+                'extract_limit': True
+            },
+            # Year-based queries
+            {
+                'pattern': r'(list|show).*(all )?medications?.*(prescribed|given).*in\s+(\d{4})',
+                'template': 'SELECT * FROM clinical_data.medications WHERE EXTRACT(YEAR FROM CAST(start AS DATE)) = {year}',
+                'extract_year': True
+            },
+            {
+                'pattern': r'how many procedures?.*(done|performed).*in\s+(\d{4})',
+                'template': 'SELECT COUNT(*) as total FROM clinical_data.procedures WHERE EXTRACT(YEAR FROM CAST(date AS DATE)) = {year}',
+                'extract_year': True
+            },
+            # Complex aggregation
+            {
+                'pattern': r'how many patients?.*(received|got|had).*more than\s+(\d+).*(immunizations?|vaccines?)',
+                'template': 'SELECT COUNT(*) as total FROM (SELECT patient FROM clinical_data.immunizations GROUP BY patient HAVING COUNT(*) > {threshold}) AS patient_counts',
+                'extract_threshold': True
+            },
+            # List distinct vaccines
+            {
+                'pattern': r'(list|show).*(all )?(distinct )?vaccines?',
+                'template': 'SELECT DISTINCT description FROM clinical_data.immunizations ORDER BY description'
+            },
             # Count queries (general pattern)
             {
                 'pattern': r'how many (patients?|conditions?|medications?|encounters?)',
@@ -187,6 +231,23 @@ class FallbackSQLGenerator:
                     break
             
             return template.format(vaccine_type=vaccine_type)
+        
+        # Handle limit extraction (for top N queries)
+        if pattern_info.get('extract_limit'):
+            limit = match.group(1) if match.groups() else '5'
+            return template.format(limit=limit)
+        
+        # Handle year extraction
+        if pattern_info.get('extract_year'):
+            year_match = re.search(r'(\d{4})', nlq)
+            year = year_match.group(1) if year_match else '2023'
+            return template.format(year=year)
+        
+        # Handle threshold extraction (for "more than X" queries)
+        if pattern_info.get('extract_threshold'):
+            threshold_match = re.search(r'more than\s+(\d+)', nlq)
+            threshold = threshold_match.group(1) if threshold_match else '2'
+            return template.format(threshold=threshold)
         
         return template
     
