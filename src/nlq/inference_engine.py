@@ -10,7 +10,7 @@ import logging
 import time
 from typing import Dict, List, Optional, Tuple, Any
 from pathlib import Path
-from transformers import T5ForConditionalGeneration, T5Tokenizer
+from transformers import T5ForConditionalGeneration, T5Tokenizer, AutoTokenizer
 import yaml
 from .fallback_sql_generator import FallbackSQLGenerator
 from .query_preprocessor import QueryPreprocessor
@@ -93,6 +93,67 @@ Key relationships:
 - payers.id -> claims.payer_id"""
         return schema_context.strip()
     
+    def _clean_generated_sql(self, sql: str) -> str:
+        """
+        Clean up common tokenization artifacts in generated SQL.
+        
+        Args:
+            sql: Raw generated SQL
+            
+        Returns:
+            Cleaned SQL
+        """
+        import re
+        
+        # Remove extra spaces around common SQL keywords and operators
+        sql = re.sub(r'\s+', ' ', sql)  # Replace multiple spaces with single space
+        sql = re.sub(r'\s*,\s*', ', ', sql)  # Fix comma spacing
+        sql = re.sub(r'\s*\(\s*', '(', sql)  # Fix opening parentheses
+        sql = re.sub(r'\s*\)\s*', ')', sql)  # Fix closing parentheses
+        sql = re.sub(r'\s*=\s*', ' = ', sql)  # Fix equals spacing
+        sql = re.sub(r'\s*<\s*', ' < ', sql)  # Fix less than spacing
+        sql = re.sub(r'\s*>\s*', ' > ', sql)  # Fix greater than spacing
+        sql = re.sub(r'\s*<=\s*', ' <= ', sql)  # Fix less than or equal spacing
+        sql = re.sub(r'\s*>=\s*', ' >= ', sql)  # Fix greater than or equal spacing
+        sql = re.sub(r'\s*<>\s*', ' <> ', sql)  # Fix not equal spacing
+        sql = re.sub(r'\s*!=\s*', ' != ', sql)  # Fix not equal spacing
+        
+        # Fix common column name issues with underscores
+        sql = re.sub(r'start_\s+date', 'start_date', sql)  # Fix "start_ date" -> "start_date"
+        sql = re.sub(r'stop_\s+date', 'stop_date', sql)  # Fix "stop_ date" -> "stop_date"
+        sql = re.sub(r'end_\s+date', 'end_date', sql)  # Fix "end_ date" -> "end_date"
+        sql = re.sub(r'first_\s+name', 'first_name', sql)  # Fix "first_ name" -> "first_name"
+        sql = re.sub(r'last_\s+name', 'last_name', sql)  # Fix "last_ name" -> "last_name"
+        sql = re.sub(r'patient_\s+id', 'patient_id', sql)  # Fix "patient_ id" -> "patient_id"
+        sql = re.sub(r'encounter_\s+id', 'encounter_id', sql)  # Fix "encounter_ id" -> "encounter_id"
+        sql = re.sub(r'provider_\s+id', 'provider_id', sql)  # Fix "provider_ id" -> "provider_id"
+        
+        # Fix ORDER BY clause spacing issues
+        sql = re.sub(r'ORDER\s+BY\s+(\w+)_\s+(\w+)', r'ORDER BY \1_\2', sql)
+        
+        # Fix common SQL keyword spacing
+        sql = re.sub(r'\s+FROM\s+', ' FROM ', sql)
+        sql = re.sub(r'\s+WHERE\s+', ' WHERE ', sql)
+        sql = re.sub(r'\s+ORDER\s+BY\s+', ' ORDER BY ', sql)
+        sql = re.sub(r'\s+GROUP\s+BY\s+', ' GROUP BY ', sql)
+        sql = re.sub(r'\s+HAVING\s+', ' HAVING ', sql)
+        sql = re.sub(r'\s+JOIN\s+', ' JOIN ', sql)
+        sql = re.sub(r'\s+LEFT\s+JOIN\s+', ' LEFT JOIN ', sql)
+        sql = re.sub(r'\s+RIGHT\s+JOIN\s+', ' RIGHT JOIN ', sql)
+        sql = re.sub(r'\s+INNER\s+JOIN\s+', ' INNER JOIN ', sql)
+        sql = re.sub(r'\s+ON\s+', ' ON ', sql)
+        sql = re.sub(r'\s+AND\s+', ' AND ', sql)
+        sql = re.sub(r'\s+OR\s+', ' OR ', sql)
+        sql = re.sub(r'\s+LIMIT\s+', ' LIMIT ', sql)
+        sql = re.sub(r'\s+OFFSET\s+', ' OFFSET ', sql)
+        
+        # Fix missing spaces after functions and keywords
+        sql = re.sub(r'COUNT\(\*\)FROM', 'COUNT(*) FROM', sql)
+        sql = re.sub(r'SELECT\s*COUNT\(\*\)FROM', 'SELECT COUNT(*) FROM', sql)
+        sql = re.sub(r'(\w+)\(([^)]*)\)FROM', r'\1(\2) FROM', sql)  # General function spacing
+        
+        return sql.strip()
+    
     def load_model(self, model_path: Optional[str] = None) -> bool:
         """
         Load the trained T5 model and tokenizer.
@@ -108,6 +169,7 @@ Key relationships:
             if model_path is None:
                 # Try multiple possible paths based on the report
                 possible_paths = [
+                    "d:/projects/healthca/models/trained/t5_clinical_model",  # Main model directory
                     "d:/projects/healthca/models/trained/t5_clinical_model/final_model",
                     "d:/projects/healthca/models/trained/t5_clinical_model/final model 2nd run",
                     "d:/projects/healthca/models/trained/t5_clinical_model/final model last",
@@ -133,8 +195,8 @@ Key relationships:
             
             logger.info(f"🔧 Using device: {self.device}")
             
-            # Load tokenizer
-            self.tokenizer = T5Tokenizer.from_pretrained(model_path)
+            # Load tokenizer - use AutoTokenizer to automatically detect the correct tokenizer type
+            self.tokenizer = AutoTokenizer.from_pretrained(model_path)
             logger.info("✅ Tokenizer loaded successfully")
             
             # Load model
@@ -256,6 +318,9 @@ Key relationships:
             # Decode generated SQL
             generated_sql = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
             generated_sql = generated_sql.strip()
+            
+            # Post-process to fix common tokenization issues
+            generated_sql = self._clean_generated_sql(generated_sql)
             
             generation_time = time.time() - start_time
             

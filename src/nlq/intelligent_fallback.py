@@ -21,6 +21,67 @@ class IntelligentFallback:
         self.basic_fallback = FallbackSQLGenerator()
         self.intent_patterns = self._build_intent_patterns()
         self.entity_extractors = self._build_entity_extractors()
+    
+    def _clean_generated_sql(self, sql: str) -> str:
+        """
+        Clean up common tokenization artifacts in generated SQL.
+        
+        Args:
+            sql: Raw generated SQL
+            
+        Returns:
+            Cleaned SQL
+        """
+        import re
+        
+        # Remove extra spaces around common SQL keywords and operators
+        sql = re.sub(r'\s+', ' ', sql)  # Replace multiple spaces with single space
+        sql = re.sub(r'\s*,\s*', ', ', sql)  # Fix comma spacing
+        sql = re.sub(r'\s*\(\s*', '(', sql)  # Fix opening parentheses
+        sql = re.sub(r'\s*\)\s*', ')', sql)  # Fix closing parentheses
+        sql = re.sub(r'\s*=\s*', ' = ', sql)  # Fix equals spacing
+        sql = re.sub(r'\s*<\s*', ' < ', sql)  # Fix less than spacing
+        sql = re.sub(r'\s*>\s*', ' > ', sql)  # Fix greater than spacing
+        sql = re.sub(r'\s*<=\s*', ' <= ', sql)  # Fix less than or equal spacing
+        sql = re.sub(r'\s*>=\s*', ' >= ', sql)  # Fix greater than or equal spacing
+        sql = re.sub(r'\s*<>\s*', ' <> ', sql)  # Fix not equal spacing
+        sql = re.sub(r'\s*!=\s*', ' != ', sql)  # Fix not equal spacing
+        
+        # Fix common column name issues with underscores
+        sql = re.sub(r'start_\s+date', 'start_date', sql)  # Fix "start_ date" -> "start_date"
+        sql = re.sub(r'stop_\s+date', 'stop_date', sql)  # Fix "stop_ date" -> "stop_date"
+        sql = re.sub(r'end_\s+date', 'end_date', sql)  # Fix "end_ date" -> "end_date"
+        sql = re.sub(r'first_\s+name', 'first_name', sql)  # Fix "first_ name" -> "first_name"
+        sql = re.sub(r'last_\s+name', 'last_name', sql)  # Fix "last_ name" -> "last_name"
+        sql = re.sub(r'patient_\s+id', 'patient_id', sql)  # Fix "patient_ id" -> "patient_id"
+        sql = re.sub(r'encounter_\s+id', 'encounter_id', sql)  # Fix "encounter_ id" -> "encounter_id"
+        sql = re.sub(r'provider_\s+id', 'provider_id', sql)  # Fix "provider_ id" -> "provider_id"
+        
+        # Fix ORDER BY clause spacing issues
+        sql = re.sub(r'ORDER\s+BY\s+(\w+)_\s+(\w+)', r'ORDER BY \1_\2', sql)
+        
+        # Fix common SQL keyword spacing
+        sql = re.sub(r'\s+FROM\s+', ' FROM ', sql)
+        sql = re.sub(r'\s+WHERE\s+', ' WHERE ', sql)
+        sql = re.sub(r'\s+ORDER\s+BY\s+', ' ORDER BY ', sql)
+        sql = re.sub(r'\s+GROUP\s+BY\s+', ' GROUP BY ', sql)
+        sql = re.sub(r'\s+HAVING\s+', ' HAVING ', sql)
+        sql = re.sub(r'\s+JOIN\s+', ' JOIN ', sql)
+        sql = re.sub(r'\s+LEFT\s+JOIN\s+', ' LEFT JOIN ', sql)
+        sql = re.sub(r'\s+RIGHT\s+JOIN\s+', ' RIGHT JOIN ', sql)
+        sql = re.sub(r'\s+INNER\s+JOIN\s+', ' INNER JOIN ', sql)
+        sql = re.sub(r'\s+ON\s+', ' ON ', sql)
+        sql = re.sub(r'\s+AND\s+', ' AND ', sql)
+        sql = re.sub(r'\s+OR\s+', ' OR ', sql)
+        sql = re.sub(r'\s+LIMIT\s+', ' LIMIT ', sql)
+        sql = re.sub(r'\s+OFFSET\s+', ' OFFSET ', sql)
+        
+        # Fix missing spaces after functions and keywords
+        sql = re.sub(r'COUNT\(\*\)FROM', 'COUNT(*) FROM', sql)
+        sql = re.sub(r'SELECT\s*COUNT\(\*\)FROM', 'SELECT COUNT(*) FROM', sql)
+        sql = re.sub(r'(\w+)\(([^)]*)\)FROM', r'\1(\2) FROM', sql)  # General function spacing
+        
+        return sql.strip()
         
     def _build_intent_patterns(self) -> Dict[str, Dict[str, Any]]:
         """Build intent recognition patterns."""
@@ -330,8 +391,10 @@ class IntelligentFallback:
             sql = self._build_sql_from_intent(intent, entities, nlq_lower)
             
             if sql:
+                # Clean the generated SQL
+                cleaned_sql = self._clean_generated_sql(sql)
                 return {
-                    'generated_sql': sql,
+                    'generated_sql': cleaned_sql,
                     'method': 'intelligent_fallback',
                     'intent': intent,
                     'entities': entities,

@@ -34,13 +34,80 @@ class FallbackSQLGenerator:
             'organizations': 'clinical_data.organizations'
         }
     
+    def _clean_generated_sql(self, sql: str) -> str:
+        """
+        Clean up common tokenization artifacts in generated SQL.
+        
+        Args:
+            sql: Raw generated SQL
+            
+        Returns:
+            Cleaned SQL
+        """
+        import re
+        
+        # Remove extra spaces around common SQL keywords and operators
+        sql = re.sub(r'\s+', ' ', sql)  # Replace multiple spaces with single space
+        sql = re.sub(r'\s*,\s*', ', ', sql)  # Fix comma spacing
+        sql = re.sub(r'\s*\(\s*', '(', sql)  # Fix opening parentheses
+        sql = re.sub(r'\s*\)\s*', ')', sql)  # Fix closing parentheses
+        sql = re.sub(r'\s*=\s*', ' = ', sql)  # Fix equals spacing
+        sql = re.sub(r'\s*<\s*', ' < ', sql)  # Fix less than spacing
+        sql = re.sub(r'\s*>\s*', ' > ', sql)  # Fix greater than spacing
+        sql = re.sub(r'\s*<=\s*', ' <= ', sql)  # Fix less than or equal spacing
+        sql = re.sub(r'\s*>=\s*', ' >= ', sql)  # Fix greater than or equal spacing
+        sql = re.sub(r'\s*<>\s*', ' <> ', sql)  # Fix not equal spacing
+        sql = re.sub(r'\s*!=\s*', ' != ', sql)  # Fix not equal spacing
+        
+        # Fix common column name issues with underscores
+        sql = re.sub(r'start_\s+date', 'start_date', sql)  # Fix "start_ date" -> "start_date"
+        sql = re.sub(r'stop_\s+date', 'stop_date', sql)  # Fix "stop_ date" -> "stop_date"
+        sql = re.sub(r'end_\s+date', 'end_date', sql)  # Fix "end_ date" -> "end_date"
+        sql = re.sub(r'first_\s+name', 'first_name', sql)  # Fix "first_ name" -> "first_name"
+        sql = re.sub(r'last_\s+name', 'last_name', sql)  # Fix "last_ name" -> "last_name"
+        sql = re.sub(r'patient_\s+id', 'patient_id', sql)  # Fix "patient_ id" -> "patient_id"
+        sql = re.sub(r'encounter_\s+id', 'encounter_id', sql)  # Fix "encounter_ id" -> "encounter_id"
+        sql = re.sub(r'provider_\s+id', 'provider_id', sql)  # Fix "provider_ id" -> "provider_id"
+        
+        # Fix ORDER BY clause spacing issues
+        sql = re.sub(r'ORDER\s+BY\s+(\w+)_\s+(\w+)', r'ORDER BY \1_\2', sql)
+        
+        # Fix common SQL keyword spacing
+        sql = re.sub(r'\s+FROM\s+', ' FROM ', sql)
+        sql = re.sub(r'\s+WHERE\s+', ' WHERE ', sql)
+        sql = re.sub(r'\s+ORDER\s+BY\s+', ' ORDER BY ', sql)
+        sql = re.sub(r'\s+GROUP\s+BY\s+', ' GROUP BY ', sql)
+        sql = re.sub(r'\s+HAVING\s+', ' HAVING ', sql)
+        sql = re.sub(r'\s+JOIN\s+', ' JOIN ', sql)
+        sql = re.sub(r'\s+LEFT\s+JOIN\s+', ' LEFT JOIN ', sql)
+        sql = re.sub(r'\s+RIGHT\s+JOIN\s+', ' RIGHT JOIN ', sql)
+        sql = re.sub(r'\s+INNER\s+JOIN\s+', ' INNER JOIN ', sql)
+        sql = re.sub(r'\s+ON\s+', ' ON ', sql)
+        sql = re.sub(r'\s+AND\s+', ' AND ', sql)
+        sql = re.sub(r'\s+OR\s+', ' OR ', sql)
+        sql = re.sub(r'\s+LIMIT\s+', ' LIMIT ', sql)
+        sql = re.sub(r'\s+OFFSET\s+', ' OFFSET ', sql)
+        
+        # Fix missing spaces after functions and keywords
+        sql = re.sub(r'COUNT\(\*\)FROM', 'COUNT(*) FROM', sql)
+        sql = re.sub(r'SELECT\s*COUNT\(\*\)FROM', 'SELECT COUNT(*) FROM', sql)
+        sql = re.sub(r'(\w+)\(([^)]*)\)FROM', r'\1(\2) FROM', sql)  # General function spacing
+        
+        return sql.strip()
+    
     def _build_patterns(self) -> List[Dict[str, Any]]:
         """Build regex patterns for common query types."""
         return [
+            # Most specific patterns first - patients with more than X immunizations
+            {
+                'pattern': r'how many patients?.*(received|got|had).*more than\s+(\d+).*(immunizations?|vaccines?)',
+                'template': 'SELECT COUNT(*) as total FROM (SELECT patient_id FROM clinical_data.immunizations GROUP BY patient_id HAVING COUNT(*) > {threshold}) AS patient_counts',
+                'extract_threshold': True
+            },
             # Vaccine-related queries (more specific, should come first)
             {
                 'pattern': r'how many patients?.*(vaccine|vaccination|immuniz)',
-                'template': 'SELECT COUNT(DISTINCT p.id) as total FROM clinical_data.patients p JOIN clinical_data.immunizations i ON p.id::text = i.patient WHERE i.description ILIKE \'%{vaccine_type}%\'',
+                'template': 'SELECT COUNT(DISTINCT p.id) as total FROM clinical_data.patients p JOIN clinical_data.immunizations i ON p.id = i.patient_id WHERE i.description ILIKE \'%{vaccine_type}%\'',
                 'extract_vaccine': True
             },
             # Condition count queries
@@ -76,12 +143,7 @@ class FallbackSQLGenerator:
                 'template': 'SELECT COUNT(*) as total FROM clinical_data.procedures WHERE EXTRACT(YEAR FROM CAST(date AS DATE)) = {year}',
                 'extract_year': True
             },
-            # Complex aggregation
-            {
-                'pattern': r'how many patients?.*(received|got|had).*more than\s+(\d+).*(immunizations?|vaccines?)',
-                'template': 'SELECT COUNT(*) as total FROM (SELECT patient FROM clinical_data.immunizations GROUP BY patient HAVING COUNT(*) > {threshold}) AS patient_counts',
-                'extract_threshold': True
-            },
+
             # List distinct vaccines
             {
                 'pattern': r'(list|show).*(all )?(distinct )?vaccines?',
@@ -170,8 +232,10 @@ class FallbackSQLGenerator:
                 try:
                     sql = self._build_sql_from_pattern(pattern_info, match, nlq_lower)
                     if sql:
+                        # Clean the generated SQL
+                        cleaned_sql = self._clean_generated_sql(sql)
                         return {
-                            'generated_sql': sql,
+                            'generated_sql': cleaned_sql,
                             'method': 'fallback_rule_based',
                             'pattern_matched': pattern,
                             'confidence': 0.8,

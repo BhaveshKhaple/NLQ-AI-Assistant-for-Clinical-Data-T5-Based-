@@ -25,8 +25,8 @@ model:
   max_source_length: 512
   max_target_length: 512
   device: "auto"  # auto, cpu, cuda
-  model_path: "./models/clinical_t5"
-  tokenizer_path: "./models/clinical_t5"
+  model_path: "d:/projects/healthca/models/trained/t5_clinical_model"
+  tokenizer_path: "d:/projects/healthca/models/trained/t5_clinical_model"
   confidence_threshold: 0.7
 
 # Training Configuration
