@@ -15,7 +15,7 @@ def quick_test_model():
     print("=" * 50)
     
     # Model path
-    model_path = "d:/projects/healthca/models/trained/t5_clinical_model/final model 2nd run"
+    model_path = "d:/projects/healthca/models/trained/t5_clinical_model"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     print(f"🔧 Device: {device}")

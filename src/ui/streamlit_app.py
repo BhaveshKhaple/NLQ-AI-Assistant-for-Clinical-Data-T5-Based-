@@ -25,6 +25,7 @@ if src_path not in sys.path:
     sys.path.insert(0, src_path)
 
 from nlq.inference_pipeline import InferencePipeline
+from nlq.rag_inference_engine import RAGEnhancedInferenceEngine
 from ui.session_manager import SessionManager
 from ui.activity_logger import ActivityLogger
 from ui.ui_components import UIComponents
@@ -33,14 +34,14 @@ from ui.database_explorer import DatabaseExplorer
 
 # Page configuration
 st.set_page_config(
-    page_title="Clinical NLQ Assistant",
-    page_icon="🏥",
+    page_title="RAG-Enhanced Clinical NLQ Assistant",
+    page_icon="🏥🤖",
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
         'Get Help': 'https://github.com/your-repo/clinical-nlq',
         'Report a bug': 'https://github.com/your-repo/clinical-nlq/issues',
-        'About': "Clinical Natural Language Query Assistant - Convert natural language to SQL queries for clinical data analysis."
+        'About': "RAG-Enhanced Clinical Natural Language Query Assistant - Advanced AI-powered query processing with retrieval-augmented generation."
     }
 )
 
@@ -72,10 +73,13 @@ class ClinicalNLQApp:
                 'show_sql': True,
                 'show_metadata': False,
                 'default_format': 'table',
-                'max_rows_display': 50
+                'max_rows_display': 50,
+                'use_rag': True  # Enable RAG by default
             }
             st.session_state.error_count = 0
             st.session_state.success_count = 0
+            st.session_state.rag_engine = None
+            st.session_state.rag_initialized = False
     
     @st.cache_resource
     def _get_pipeline(_self):
@@ -89,6 +93,16 @@ class ClinicalNLQApp:
             return pipeline
         except Exception as e:
             st.error(f"Failed to create pipeline: {e}")
+            return None
+    
+    @st.cache_resource
+    def _get_rag_engine(_self):
+        """Get or create the RAG-enhanced inference engine (cached)."""
+        try:
+            rag_engine = RAGEnhancedInferenceEngine()
+            return rag_engine
+        except Exception as e:
+            st.error(f"Failed to create RAG engine: {e}")
             return None
     
     def _initialize_pipeline(self):
@@ -122,13 +136,39 @@ class ClinicalNLQApp:
         
         return st.session_state.pipeline_initialized
     
+    def _initialize_rag_engine(self):
+        """Initialize the RAG engine if not already done."""
+        if not st.session_state.rag_initialized and st.session_state.user_preferences.get('use_rag', False):
+            with st.spinner("🤖 Initializing RAG-Enhanced Engine..."):
+                try:
+                    rag_engine = self._get_rag_engine()
+                    if rag_engine:
+                        # Load model
+                        if rag_engine.load_model():
+                            # Initialize RAG system
+                            if rag_engine.initialize_rag_system():
+                                st.session_state.rag_engine = rag_engine
+                                st.session_state.rag_initialized = True
+                                st.success("✅ RAG system initialized successfully!")
+                                return True
+                            else:
+                                st.warning("⚠️ RAG system initialization failed, using traditional approach")
+                        else:
+                            st.warning("⚠️ Model loading failed, using traditional approach")
+                except Exception as e:
+                    st.warning(f"⚠️ RAG initialization error: {e}")
+                    return False
+        
+        return st.session_state.rag_initialized
+    
     def render_header(self):
         """Render the application header."""
-        st.title("🏥 Clinical Natural Language Query Assistant")
+        st.title("🏥🤖 RAG-Enhanced Clinical NLQ Assistant")
+        st.markdown("*Advanced AI-powered natural language query processing with retrieval-augmented generation*")
         st.markdown("---")
         
         # Status indicators
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3, col4, col5 = st.columns(5)
         
         with col1:
             if st.session_state.pipeline_initialized:
@@ -148,6 +188,14 @@ class ClinicalNLQApp:
                 st.error(f"❌ Errors: {st.session_state.error_count}")
             else:
                 st.success(f"❌ Errors: {st.session_state.error_count}")
+        
+        with col5:
+            if st.session_state.rag_initialized:
+                st.success("🤖 RAG Ready")
+            elif st.session_state.user_preferences.get('use_rag', True):
+                st.warning("🤖 RAG Loading")
+            else:
+                st.info("🤖 RAG Disabled")
     
     def render_sidebar(self):
         """Render the sidebar with settings and history."""
@@ -180,6 +228,54 @@ class ClinicalNLQApp:
                 value=st.session_state.user_preferences['max_rows_display'],
                 step=10
             )
+            
+            # RAG Settings
+            st.markdown("### 🤖 RAG Enhancement")
+            
+            use_rag = st.checkbox(
+                "Enable RAG Enhancement",
+                value=st.session_state.user_preferences.get('use_rag', True),
+                help="Use Retrieval-Augmented Generation for better query processing"
+            )
+            st.session_state.user_preferences['use_rag'] = use_rag
+            
+            # LLM Selection
+            if use_rag:
+                llm_options = ["gemini", "openai", "none"]
+                preferred_llm = st.selectbox(
+                    "🧠 Preferred LLM",
+                    options=llm_options,
+                    index=llm_options.index(st.session_state.user_preferences.get('preferred_llm', 'gemini')),
+                    help="Choose which LLM to use for query enhancement"
+                )
+                st.session_state.user_preferences['preferred_llm'] = preferred_llm
+                
+                # SQL Generation Method
+                sql_method = st.radio(
+                    "🔧 SQL Generation Method",
+                    options=["T5 Model (Enhanced)", "Gemini Direct", "Hybrid"],
+                    index=0,
+                    help="Choose how to generate SQL queries"
+                )
+                st.session_state.user_preferences['sql_method'] = sql_method
+            
+            # Initialize RAG if enabled
+            if use_rag and not st.session_state.rag_initialized:
+                if st.button("🚀 Initialize RAG System"):
+                    self._initialize_rag_engine()
+            
+            # RAG Status
+            if st.session_state.rag_initialized:
+                st.success("✅ RAG System Ready")
+                if st.session_state.rag_engine:
+                    stats = st.session_state.rag_engine.get_comprehensive_stats()
+                    gen_stats = stats.get('generation_stats', {})
+                    if gen_stats.get('total_queries', 0) > 0:
+                        st.metric("RAG Success Rate", f"{gen_stats.get('rag_enhancement_rate', 0)*100:.1f}%")
+            elif use_rag:
+                st.warning("⚠️ RAG System Not Initialized")
+            else:
+                st.info("ℹ️ RAG Enhancement Disabled")
             
             st.markdown("---")
             
@@ -291,18 +387,82 @@ class ClinicalNLQApp:
         
         with st.spinner("🧠 Processing your query..."):
             try:
-                # Process the query
-                result = self.pipeline.process_query(
-                    nlq=nlq,
-                    output_formats=output_formats or ['table'],
-                    user_id=st.session_state.session_id,
-                    session_info={
-                        'session_start': st.session_state.session_start.isoformat(),
-                        'query_count': len(st.session_state.query_history) + 1
-                    },
-                    generation_params=generation_params,
-                    execution_params=execution_params
-                )
+                # Use RAG engine if available and enabled
+                if st.session_state.rag_initialized and st.session_state.user_preferences.get('use_rag', False):
+                    # Get SQL generation method preference
+                    sql_method = st.session_state.user_preferences.get('sql_method', 'T5 Model (Enhanced)')
+                    
+                    if sql_method == 'Gemini Direct':
+                        # Use Gemini directly for SQL generation
+                        rag_result = st.session_state.rag_engine.generate_sql_with_gemini(
+                            nlq, 
+                            use_rag=True
+                        )
+                    elif sql_method == 'Hybrid':
+                        # Try Gemini first, fallback to T5
+                        try:
+                            rag_result = st.session_state.rag_engine.generate_sql_with_gemini(
+                                nlq, 
+                                use_rag=True
+                            )
+                            if not rag_result['validation']['is_valid']:
+                                # Fallback to T5
+                                rag_result = st.session_state.rag_engine.generate_sql(
+                                    nlq, 
+                                    use_rag=True,
+                                    **generation_params
+                                )
+                                rag_result['metadata']['method'] = 'hybrid_t5_fallback'
+                        except Exception:
+                            # Fallback to T5 on error
+                            rag_result = st.session_state.rag_engine.generate_sql(
+                                nlq, 
+                                use_rag=True,
+                                **generation_params
+                            )
+                            rag_result['metadata']['method'] = 'hybrid_t5_fallback'
+                    else:
+                        # Default: T5 Model (Enhanced)
+                        rag_result = st.session_state.rag_engine.generate_sql(
+                            nlq, 
+                            use_rag=True,
+                            **generation_params
+                        )
+                    
+                    # Convert RAG result to pipeline format
+                    result = {
+                        'success': rag_result['validation']['is_valid'],
+                        'generated_sql': rag_result['generated_sql'],
+                        'nlq': rag_result['nlq'],
+                        'metadata': rag_result['metadata'],
+                        'validation': rag_result['validation'],
+                        'generation_time': rag_result['generation_time'],
+                        'rag_enhanced': True
+                    }
+                    
+                    # Execute SQL if valid and execution is requested
+                    if result['success'] and 'table' in output_formats:
+                        try:
+                            from nlq.database_executor import DatabaseExecutor
+                            db_executor = DatabaseExecutor()
+                            exec_result = db_executor.execute_query(result['generated_sql'])
+                            result['execution'] = exec_result
+                        except Exception as e:
+                            result['execution'] = {'success': False, 'error': str(e)}
+                else:
+                    # Use traditional pipeline
+                    result = self.pipeline.process_query(
+                        nlq=nlq,
+                        output_formats=output_formats or ['table'],
+                        user_id=st.session_state.session_id,
+                        session_info={
+                            'session_start': st.session_state.session_start.isoformat(),
+                            'query_count': len(st.session_state.query_history) + 1
+                        },
+                        generation_params=generation_params,
+                        execution_params=execution_params
+                    )
+                    result['rag_enhanced'] = False
                 
                 query_time = time.time() - query_start_time
                 
@@ -377,7 +537,30 @@ class ClinicalNLQApp:
     
     def _display_successful_result(self, result: Dict[str, Any]):
         """Display successful query results."""
-        st.success("✅ Query executed successfully!")
+        # Success message with RAG indicator
+        if result.get('rag_enhanced', False):
+            st.success("✅ Query executed successfully with RAG enhancement!")
+        else:
+            st.success("✅ Query executed successfully!")
+        
+        # RAG Enhancement Information
+        if result.get('rag_enhanced', False) and result.get('metadata', {}).get('rag_info'):
+            with st.expander("🤖 RAG Enhancement Details"):
+                rag_info = result['metadata']['rag_info']
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Enhancement Method", rag_info.get('method_used', 'unknown').replace('_', ' ').title())
+                with col2:
+                    st.metric("Confidence Score", f"{rag_info.get('confidence_score', 0):.3f}")
+                with col3:
+                    st.metric("RAG Processing Time", f"{rag_info.get('processing_time', 0):.3f}s")
+                
+                # Show similar examples if available
+                if rag_info.get('similar_examples'):
+                    st.markdown("**Similar Training Examples Used:**")
+                    for i, example in enumerate(rag_info['similar_examples'][:3], 1):
+                        st.text(f"{i}. \"{example['extracted_nlq']}\" (similarity: {example['similarity_score']:.3f})")
         
         # Show generated SQL if enabled
         if st.session_state.user_preferences['show_sql']:
@@ -603,6 +786,11 @@ class ClinicalNLQApp:
     def run(self):
         """Run the Streamlit application."""
         try:
+            # Initialize systems
+            self._initialize_pipeline()
+            if st.session_state.user_preferences.get('use_rag', True):
+                self._initialize_rag_engine()
+            
             # Render components
             self.render_header()
             self.render_sidebar()
