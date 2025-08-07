@@ -692,19 +692,35 @@ class ClinicalNLQApp:
             
             except Exception as e:
                 st.session_state.error_count += 1
-                st.error(f"❌ Unexpected error: {e}")
                 
-                # Log exception
+                # More descriptive error message
+                error_msg = str(e)
+                if error_msg == "'results'":
+                    st.error("❌ **Result Display Error**: There was an issue displaying the query results. This might be due to a mismatch in result format.")
+                    st.info("💡 **Suggestion**: Try refreshing the page and running your query again. If the issue persists, try using a simpler query format.")
+                else:
+                    st.error(f"❌ **Unexpected Error**: {error_msg}")
+                
+                # Log exception with more context
                 self.activity_logger.log_activity(
                     session_id=st.session_state.session_id,
                     activity_type='query_exception',
-                    details={'nlq': nlq, 'exception': str(e)},
+                    details={
+                        'nlq': nlq, 
+                        'exception': error_msg,
+                        'error_type': type(e).__name__,
+                        'traceback': str(e.__class__.__name__)
+                    },
                     success=False
                 )
                 
                 self.error_handler.handle_error(
-                    error=str(e),
-                    context={'nlq': nlq, 'component': 'query_processing'}
+                    error=error_msg,
+                    context={
+                        'nlq': nlq, 
+                        'component': 'query_processing',
+                        'error_type': type(e).__name__
+                    }
                 )
     
     def _display_successful_result(self, result: Dict[str, Any]):
@@ -742,20 +758,39 @@ class ClinicalNLQApp:
         # Show metadata if enabled
         if st.session_state.user_preferences['show_metadata']:
             with st.expander("📊 Query Metadata"):
-                metadata = result['metadata']
+                metadata = result.get('metadata', {})
                 col1, col2, col3, col4 = st.columns(4)
                 
                 with col1:
-                    st.metric("Rows Returned", metadata['rows_returned'])
+                    # Handle different metadata structures
+                    rows_returned = metadata.get('rows_returned', 0)
+                    if 'execution' in result and result['execution'].get('data') is not None:
+                        rows_returned = len(result['execution']['data'])
+                    st.metric("Rows Returned", rows_returned)
                 with col2:
-                    st.metric("Total Time", f"{metadata['total_time']:.3f}s")
+                    total_time = metadata.get('total_time', result.get('generation_time', 0))
+                    st.metric("Total Time", f"{total_time:.3f}s")
                 with col3:
-                    st.metric("SQL Generation", f"{metadata['generation_time']:.3f}s")
+                    generation_time = metadata.get('generation_time', result.get('generation_time', 0))
+                    st.metric("SQL Generation", f"{generation_time:.3f}s")
                 with col4:
-                    st.metric("DB Execution", f"{metadata['execution_time']:.3f}s")
+                    exec_time = metadata.get('execution_time', 0)
+                    if 'execution' in result:
+                        exec_time = result['execution'].get('execution_time', 0)
+                    st.metric("DB Execution", f"{exec_time:.3f}s")
         
         # Display results in different formats
-        formats = result['results']['formats']
+        # Handle different result structures (RAG vs traditional pipeline)
+        if 'results' in result and 'formats' in result['results']:
+            # Traditional pipeline result structure
+            formats = result['results']['formats']
+        elif 'execution' in result and result['execution'].get('success'):
+            # RAG result structure with execution data
+            formats = {'table': result['execution']}
+        else:
+            # No execution results to display
+            st.info("📋 SQL generated successfully. Enable table output to see query results.")
+            return
         
         if len(formats) == 1:
             # Single format - display directly
@@ -787,14 +822,30 @@ class ClinicalNLQApp:
     
     def _display_table_result(self, format_result: Dict[str, Any]):
         """Display table format results."""
-        data = format_result['data']
-        
-        if not data:
-            st.info("📭 No data returned")
-            return
-        
-        # Convert to DataFrame
-        df = pd.DataFrame(data)
+        # Handle different data structures
+        if 'data' in format_result:
+            # Traditional pipeline format
+            data = format_result['data']
+            if data is None or (isinstance(data, list) and len(data) == 0):
+                st.info("📭 No data returned")
+                return
+            # Convert to DataFrame if it's not already
+            if isinstance(data, pd.DataFrame):
+                df = data
+            else:
+                df = pd.DataFrame(data)
+        else:
+            # RAG execution result format - format_result is the execution result itself
+            if not format_result.get('success', False):
+                st.error(f"❌ Query execution failed: {format_result.get('error', 'Unknown error')}")
+                return
+            
+            data = format_result.get('data')
+            if data is None or (hasattr(data, 'empty') and data.empty):
+                st.info("📭 No data returned")
+                return
+            
+            df = data if isinstance(data, pd.DataFrame) else pd.DataFrame(data)
         
         # Limit rows for display
         max_rows = st.session_state.user_preferences['max_rows_display']
