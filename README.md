@@ -8,6 +8,8 @@ An AI-powered assistant that allows healthcare professionals to ask clinical que
 
 - **🤖 Multi-AI Architecture**: Choose between T5 model, Google Gemini LLM, or hybrid approaches
 - **🧠 Advanced Language Understanding**: Google Gemini integration for complex natural language queries
+- **🗄️ Schema-Enhanced RAG**: 360+ database schema embeddings for accurate SQL generation
+- **🔍 Smart Input Detection**: Automatically detects SQL vs natural language with user guidance
 - **🔄 Intelligent Fallbacks**: Automatic switching between AI models for maximum reliability
 - **🌐 REST API Server**: FastAPI-based programmatic access with comprehensive documentation
 - **📊 Real-time Performance Monitoring**: Track AI performance and query success rates
@@ -216,6 +218,89 @@ curl -X POST "http://localhost:8000/query" \
 - ✅ Need both consistency and advanced capabilities
 - ✅ Want automatic fallback protection
 
+## 🗄️ Schema-Enhanced RAG System
+
+### ✨ **Intelligent Database Context**
+
+The system now features **Schema-Enhanced RAG (Retrieval-Augmented Generation)** that combines training examples with comprehensive database schema knowledge for unprecedented SQL generation accuracy.
+
+### 🧠 **How It Works**
+
+#### **1. Database Schema Extraction**
+```
+Database → Schema Extractor → 360+ Schema Descriptions → Embeddings
+```
+- ✅ **23 Tables Analyzed**: Complete clinical database structure
+- ✅ **360+ Descriptions**: Natural language schema information
+- ✅ **Relationship Mapping**: Foreign keys and table connections
+- ✅ **Query Patterns**: Common SQL patterns for each table
+
+#### **2. Dual Retrieval System**
+```
+User Query → [Training Examples] + [Schema Context] → Enhanced Context → AI Processing
+```
+- ✅ **Training Examples**: Similar successful queries from 4,588 examples
+- ✅ **Schema Context**: Relevant table/column information
+- ✅ **Combined Intelligence**: Rich context for accurate SQL generation
+
+#### **3. Smart Input Detection**
+```
+User Input → SQL Detection → [Natural Language Path] OR [Direct SQL Execution]
+```
+- ✅ **SQL Recognition**: Automatically detects SQL vs natural language
+- ✅ **User Guidance**: Clear feedback and helpful examples
+- ✅ **Flexible Execution**: Process naturally or execute SQL directly
+
+### 🎯 **Key Benefits**
+
+#### **🔍 Accurate Entity Recognition**
+- **Before**: Generic table/column guessing
+- **After**: Precise database entity identification with schema context
+
+#### **💡 Intelligent User Guidance**
+- **SQL Detection**: "⚠️ SQL Detected: Try asking in plain English instead"
+- **Query Examples**: Quick-start buttons and helpful tips
+- **Best Practices**: Clear do's and don'ts for better results
+
+#### **📊 Enhanced Context Building**
+```
+Enhanced Context = Base Schema + Relevant Tables + Column Details + Query Patterns + Training Examples
+```
+
+### 🧪 **Schema Enhancement Examples**
+
+#### **User Query**: "How many patients do we have?"
+
+**Schema Context Retrieved**:
+- Table: `clinical_data.patients` with columns: id, first, last, gender, birthdate...
+- Query Pattern: `SELECT COUNT(*) FROM clinical_data.patients`
+- Similar Examples: Previous successful patient count queries
+
+**Result**: Accurate SQL with correct table name and schema reference
+
+#### **User Query**: "Show me diabetic patients"
+
+**Schema Context Retrieved**:
+- Table: `clinical_data.conditions` with description column
+- Relationship: `conditions.patient_id → patients.id`
+- Pattern: `WHERE description LIKE '%diabetes%'`
+
+**Result**: Proper JOIN query with correct condition filtering
+
+### ⚠️ **Smart SQL Detection**
+
+When users accidentally enter SQL instead of natural language:
+
+**Input**: `SELECT COUNT(*) FROM clinical_data.patients`
+
+**System Response**:
+```
+⚠️ SQL Detected: You entered SQL code instead of a natural language question.
+💡 Try instead: Ask in plain English like 'How many patients do we have?'
+
+[Execute SQL Directly] button available
+```
+
 ## 🚀 Quick Start Guide
 
 ### Prerequisites
@@ -340,6 +425,26 @@ Find potential drug interactions in our patient population
 Show me patients with hypertension who have poor medication adherence
 What are the most common comorbidities for patients with heart disease?
 Analyze the effectiveness of different treatment protocols
+```
+
+#### **Schema-Enhanced Queries** (Showcasing Database Context)
+```
+Show me all columns in the patients table
+Find patients with conditions containing 'hypertension' in the description
+List all encounters for patient ID 12345 with their associated procedures
+What are the different types of observations recorded in our system?
+Show me the relationship between patients and their care plans
+```
+
+#### **⚠️ What NOT to Enter** (System will detect and guide you)
+```
+❌ SELECT COUNT(*) FROM clinical_data.patients
+❌ SELECT * FROM conditions WHERE description LIKE '%diabetes%'
+❌ INSERT INTO patients VALUES (...)
+
+✅ Instead ask: "How many patients do we have?"
+✅ Instead ask: "Find patients with diabetes"
+✅ Instead ask: "Add a new patient record"
 ```
 
 ## 🛠️ Tech Stack
@@ -866,6 +971,14 @@ For questions, issues, or contributions, please:
 - **📊 Performance Monitoring**: Real-time AI metrics and health tracking
 - **🔐 Security Features**: Content filtering and safe AI usage
 
+### **✅ COMPLETED: Schema-Enhanced RAG System**
+- **🗄️ Database Schema Embeddings**: 360+ schema descriptions for accurate SQL generation
+- **🔍 Smart SQL Detection**: Automatically detects SQL vs natural language input
+- **🧠 Dual Retrieval System**: Training examples + database schema context
+- **💡 Intelligent User Guidance**: Clear feedback and helpful query examples
+- **📊 Enhanced Context Building**: Rich schema information for better accuracy
+- **🎯 Improved Column/Table Recognition**: Precise database entity identification
+
 ### **🎯 Future Enhancements**
 
 - **Multi-language Support**: Support for multiple natural languages
@@ -911,11 +1024,14 @@ This system provides **three powerful ways** to interact with clinical data usin
 | **Accuracy** | ⭐⭐⭐⭐ High | ⭐⭐⭐⭐⭐ Very High | ⭐⭐⭐⭐⭐ Very High |
 | **Consistency** | ⭐⭐⭐⭐⭐ Excellent | ⭐⭐⭐⭐ Good | ⭐⭐⭐⭐⭐ Excellent |
 | **Complex Queries** | ⭐⭐⭐ Good | ⭐⭐⭐⭐⭐ Excellent | ⭐⭐⭐⭐⭐ Excellent |
+| **Schema Context** | ⭐⭐⭐⭐⭐ Full | ⭐⭐⭐⭐⭐ Full | ⭐⭐⭐⭐⭐ Full |
 | **Reliability** | ⭐⭐⭐⭐ High | ⭐⭐⭐⭐ Good | ⭐⭐⭐⭐⭐ Maximum |
 
 ### **📊 Production-Ready Features**
 - ✅ **17,573+ Clinical Records** across 7 core medical tables
 - ✅ **4,588 Training Examples** with RAG-enhanced processing
+- ✅ **360+ Schema Descriptions** with database context embeddings
+- ✅ **Smart SQL Detection** with automatic input type recognition
 - ✅ **90%+ Query Success Rate** with intelligent fallbacks
 - ✅ **Sub-5 Second Response Times** for most queries
 - ✅ **100% Data Quality Score** with comprehensive validation
@@ -932,9 +1048,9 @@ This system provides **three powerful ways** to interact with clinical data usin
 
 ## 🎉 **Ready to Transform Clinical Data Access**
 
-**This Clinical NLQ AI Assistant represents a complete, production-ready solution** that bridges the gap between healthcare professionals and complex clinical databases. With cutting-edge AI integration, comprehensive testing, and multiple deployment options, it's ready to revolutionize how medical data is accessed and analyzed.
+**This Clinical NLQ AI Assistant represents a complete, production-ready solution** that bridges the gap between healthcare professionals and complex clinical databases. With cutting-edge AI integration, schema-enhanced RAG system, smart input detection, and comprehensive testing, it's ready to revolutionize how medical data is accessed and analyzed.
 
-**🚀 Start exploring your clinical data with the power of natural language today!**
+**🚀 Start exploring your clinical data with the power of intelligent natural language processing today!**
 
 ---
 

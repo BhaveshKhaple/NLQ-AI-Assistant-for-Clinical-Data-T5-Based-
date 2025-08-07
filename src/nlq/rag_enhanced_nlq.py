@@ -33,6 +33,13 @@ except ImportError:
     GEMINI_AVAILABLE = False
     GeminiLLMClient = None
 
+try:
+    from .database_schema_extractor import DatabaseSchemaExtractor
+    SCHEMA_EXTRACTOR_AVAILABLE = True
+except ImportError:
+    SCHEMA_EXTRACTOR_AVAILABLE = False
+    DatabaseSchemaExtractor = None
+
 logger = logging.getLogger(__name__)
 
 class RAGEnhancedNLQ:
@@ -59,10 +66,17 @@ class RAGEnhancedNLQ:
         """
         self.training_data_path = training_data_path
         self.training_data = []
+        self.schema_data = []  # Schema descriptions for embeddings
         self.query_embeddings = None
+        self.schema_embeddings = None
         self.embedding_model = None
         
-        # Schema context that matches training format
+        # Initialize schema extractor
+        self.schema_extractor = None
+        if SCHEMA_EXTRACTOR_AVAILABLE:
+            self.schema_extractor = DatabaseSchemaExtractor()
+        
+        # Default schema context (fallback)
         self.schema_context = """Database Schema: clinical_data
 Tables: patients, organizations, providers, encounters, conditions, medications, procedures, observations, allergies, careplans, immunizations, claims, payers
 Key relationships: 
@@ -136,11 +150,149 @@ Key relationships:
             self.query_embeddings = self.embedding_model.encode(queries)
             
             logger.info(f"✅ Created embeddings for {len(queries)} queries")
+            
+            # Load and embed schema information
+            self._load_schema_data()
+            
             return True
             
         except Exception as e:
             logger.error(f"❌ Error loading training data: {e}")
             return False
+    
+    def _load_schema_data(self) -> bool:
+        """Load database schema information for enhanced context."""
+        try:
+            if not self.schema_extractor:
+                logger.warning("⚠️ Schema extractor not available, using default schema context")
+                return False
+            
+            logger.info("🔄 Loading database schema information...")
+            
+            # Extract schema information
+            schema_info = self.schema_extractor.extract_schema_info()
+            if not schema_info:
+                logger.warning("⚠️ Could not extract schema info, using default context")
+                return False
+            
+            # Get schema descriptions for embeddings
+            self.schema_data = schema_info.get('schema_descriptions', [])
+            
+            if self.schema_data:
+                # Create embeddings for schema descriptions
+                schema_texts = [desc['description'] for desc in self.schema_data]
+                logger.info(f"🔄 Creating embeddings for {len(schema_texts)} schema descriptions...")
+                self.schema_embeddings = self.embedding_model.encode(schema_texts)
+                
+                # Update schema context with actual database info
+                tables = list(schema_info.get('tables', {}).keys())
+                relationships = schema_info.get('relationships', [])
+                
+                self.schema_context = f"""Database Schema: clinical_data
+Tables: {', '.join(tables)}
+Key relationships: 
+{chr(10).join([f"- {rel['table']}.{rel['column']} -> {rel['referenced_table']}.{rel['referenced_column']}" for rel in relationships[:10]])}"""
+                
+                logger.info(f"✅ Loaded schema data with {len(self.schema_data)} descriptions")
+                return True
+            else:
+                logger.warning("⚠️ No schema descriptions found")
+                return False
+                
+        except Exception as e:
+            logger.error(f"❌ Error loading schema data: {e}")
+            return False
+        finally:
+            # Close schema extractor connection
+            if self.schema_extractor:
+                self.schema_extractor.close()
+    
+    def retrieve_relevant_schema(self, user_query: str, top_k: int = 5) -> List[Dict[str, Any]]:
+        """
+        Retrieve relevant schema information based on user query.
+        
+        Args:
+            user_query: User's natural language query
+            top_k: Number of relevant schema items to retrieve
+            
+        Returns:
+            List of relevant schema descriptions with similarity scores
+        """
+        if not self.embedding_model or self.schema_embeddings is None or not self.schema_data:
+            logger.warning("⚠️ Schema data not loaded, cannot retrieve schema info")
+            return []
+        
+        try:
+            # Encode user query
+            user_embedding = self.embedding_model.encode([user_query])
+            
+            # Calculate similarities with schema descriptions
+            similarities = cosine_similarity(user_embedding, self.schema_embeddings)[0]
+            
+            # Get top-k most relevant schema items
+            top_indices = np.argsort(similarities)[-top_k:][::-1]
+            
+            relevant_schema = []
+            for idx in top_indices:
+                schema_item = self.schema_data[idx].copy()
+                schema_item['similarity_score'] = float(similarities[idx])
+                relevant_schema.append(schema_item)
+            
+            return relevant_schema
+            
+        except Exception as e:
+            logger.error(f"❌ Error retrieving schema info: {e}")
+            return []
+    
+    def _build_enhanced_schema_context(self, relevant_schema: List[Dict[str, Any]]) -> str:
+        """
+        Build enhanced schema context combining default schema with relevant schema info.
+        
+        Args:
+            relevant_schema: List of relevant schema descriptions
+            
+        Returns:
+            Enhanced schema context string
+        """
+        # Start with base schema context
+        enhanced_context = self.schema_context
+        
+        if relevant_schema:
+            enhanced_context += "\n\nRelevant Schema Details:\n"
+            
+            # Group schema info by type
+            tables_info = []
+            columns_info = []
+            patterns_info = []
+            relationships_info = []
+            
+            for schema_item in relevant_schema:
+                schema_type = schema_item.get('type', 'unknown')
+                description = schema_item.get('description', '')
+                
+                if schema_type == 'table':
+                    tables_info.append(description)
+                elif schema_type == 'column':
+                    columns_info.append(description)
+                elif schema_type == 'query_pattern':
+                    patterns_info.append(description)
+                elif schema_type == 'relationship':
+                    relationships_info.append(description)
+            
+            # Add organized schema information
+            if tables_info:
+                enhanced_context += "\nTable Information:\n" + "\n".join(f"- {info}" for info in tables_info)
+            
+            if columns_info:
+                enhanced_context += "\n\nColumn Information:\n" + "\n".join(f"- {info}" for info in columns_info)
+            
+            if relationships_info:
+                enhanced_context += "\n\nRelationship Information:\n" + "\n".join(f"- {info}" for info in relationships_info)
+            
+            if patterns_info:
+                enhanced_context += "\n\nQuery Patterns:\n" + "\n".join(f"- {info}" for info in patterns_info)
+        
+        return enhanced_context
     
     def retrieve_similar_examples(self, user_query: str, top_k: int = 5) -> List[Dict[str, Any]]:
         """
@@ -286,21 +438,34 @@ Reformatted Query:"""
             similar_examples = self.retrieve_similar_examples(user_query, top_k=5)
             result['similar_examples'] = similar_examples
             
-            if similar_examples:
+            # Step 2: Retrieve relevant schema information
+            relevant_schema = self.retrieve_relevant_schema(user_query, top_k=5)
+            result['relevant_schema'] = relevant_schema
+            
+            if similar_examples or relevant_schema:
                 result['rag_enhanced'] = True
                 self.stats['rag_enhanced_queries'] += 1
                 
                 # Calculate confidence based on similarity scores
-                avg_similarity = np.mean([ex['similarity_score'] for ex in similar_examples])
+                similarities = []
+                if similar_examples:
+                    similarities.extend([ex['similarity_score'] for ex in similar_examples])
+                if relevant_schema:
+                    similarities.extend([schema['similarity_score'] for schema in relevant_schema])
+                
+                avg_similarity = np.mean(similarities) if similarities else 0.0
                 result['confidence_score'] = float(avg_similarity)
                 
-                # Step 2: Try to format with LLM if available and similarity is high enough
+                # Step 3: Try to format with LLM if available and similarity is high enough
                 llm_result = None
-                if avg_similarity > 0.7:
+                if avg_similarity > 0.5:  # Lower threshold to use schema info more often
+                    # Build enhanced schema context with relevant schema info
+                    enhanced_schema_context = self._build_enhanced_schema_context(relevant_schema)
+                    
                     # Try preferred LLM first
                     if self.preferred_llm == 'gemini' and self.gemini_client:
                         llm_result = self.gemini_client.enhance_query_with_gemini(
-                            user_query, similar_examples, self.schema_context
+                            user_query, similar_examples, enhanced_schema_context
                         )
                         if llm_result and llm_result.get('enhanced_query'):
                             result['enhanced_query'] = llm_result['enhanced_query']
@@ -318,7 +483,7 @@ Reformatted Query:"""
                     if not result['llm_formatted']:
                         if self.gemini_client and self.preferred_llm != 'gemini':
                             llm_result = self.gemini_client.enhance_query_with_gemini(
-                                user_query, similar_examples, self.schema_context
+                                user_query, similar_examples, enhanced_schema_context
                             )
                             if llm_result and llm_result.get('enhanced_query'):
                                 result['enhanced_query'] = llm_result['enhanced_query']

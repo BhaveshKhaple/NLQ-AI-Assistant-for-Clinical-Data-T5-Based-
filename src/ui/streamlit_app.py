@@ -331,6 +331,53 @@ class ClinicalNLQApp:
             help="Ask questions about patients, diagnoses, medications, procedures, or any clinical data in natural language."
         )
         
+        # Helpful tips
+        with st.expander("💡 Query Examples & Tips"):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("**✅ Good Natural Language Examples:**")
+                st.markdown("""
+                - How many patients do we have?
+                - Show me all male patients
+                - Find patients with diabetes
+                - What medications are most prescribed?
+                - List patients over 65 years old
+                - Which provider sees the most patients?
+                """)
+            
+            with col2:
+                st.markdown("**❌ Don't Enter SQL Code:**")
+                st.markdown("""
+                - ~~SELECT COUNT(*) FROM patients~~
+                - ~~SELECT * FROM conditions WHERE...~~
+                - ~~INSERT INTO table...~~
+                
+                **Instead, ask in plain English!**
+                The AI will convert your question to SQL automatically.
+                """)
+        
+        # Quick example buttons
+        st.markdown("**🚀 Quick Examples:**")
+        example_col1, example_col2, example_col3 = st.columns(3)
+        
+        with example_col1:
+            if st.button("👥 Patient Count"):
+                st.session_state.example_query = "How many patients do we have?"
+        
+        with example_col2:
+            if st.button("🏥 Common Conditions"):
+                st.session_state.example_query = "What are the most common medical conditions?"
+        
+        with example_col3:
+            if st.button("💊 Medications"):
+                st.session_state.example_query = "Show me the most frequently prescribed medications"
+        
+        # Use example query if selected
+        if hasattr(st.session_state, 'example_query') and st.session_state.example_query:
+            query_input = st.session_state.example_query
+            st.session_state.example_query = None  # Clear after use
+        
         # Query options
         col1, col2, col3 = st.columns(3)
         
@@ -373,9 +420,134 @@ class ClinicalNLQApp:
         elif submit_button:
             st.warning("⚠️ Please enter a query")
     
+    def _is_sql_query(self, text: str) -> bool:
+        """
+        Detect if the input text is SQL rather than natural language.
+        
+        Args:
+            text: Input text to check
+            
+        Returns:
+            True if text appears to be SQL, False otherwise
+        """
+        text_upper = text.upper().strip()
+        
+        # Common SQL keywords that indicate SQL rather than natural language
+        sql_indicators = [
+            'SELECT ',
+            'INSERT ',
+            'UPDATE ',
+            'DELETE ',
+            'CREATE ',
+            'DROP ',
+            'ALTER ',
+            'TRUNCATE ',
+            'WITH '
+        ]
+        
+        # Check if text starts with SQL keywords
+        for indicator in sql_indicators:
+            if text_upper.startswith(indicator):
+                return True
+        
+        # Additional checks for SQL patterns
+        if ('FROM ' in text_upper and 
+            ('SELECT' in text_upper or 'COUNT(' in text_upper or 'SUM(' in text_upper)):
+            return True
+        
+        # Check for common SQL patterns
+        sql_patterns = [
+            'COUNT(*)',
+            'COUNT(1)',
+            'GROUP BY',
+            'ORDER BY',
+            'WHERE ',
+            'HAVING ',
+            'INNER JOIN',
+            'LEFT JOIN',
+            'RIGHT JOIN'
+        ]
+        
+        for pattern in sql_patterns:
+            if pattern in text_upper:
+                return True
+        
+        return False
+    
+    def _execute_sql_directly(self, sql: str, output_formats: List[str], execution_params: Dict):
+        """
+        Execute SQL directly without NLQ processing.
+        
+        Args:
+            sql: SQL query to execute
+            output_formats: Requested output formats
+            execution_params: Execution parameters
+        """
+        try:
+            from nlq.database_executor import DatabaseExecutor
+            
+            with st.spinner("🗄️ Executing SQL query..."):
+                db_executor = DatabaseExecutor()
+                exec_result = db_executor.execute_query(sql, **execution_params)
+                
+                if exec_result['success']:
+                    st.success("✅ **SQL executed successfully!**")
+                    
+                    # Display results
+                    if exec_result['data'] is not None and not exec_result['data'].empty:
+                        st.subheader("📊 Query Results")
+                        st.dataframe(exec_result['data'], use_container_width=True)
+                        
+                        # Show execution stats
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("Rows Returned", len(exec_result['data']))
+                        with col2:
+                            st.metric("Execution Time", f"{exec_result['execution_time']:.3f}s")
+                        with col3:
+                            st.metric("Columns", len(exec_result['data'].columns))
+                        
+                        # Export options
+                        if 'CSV' in output_formats:
+                            csv = exec_result['data'].to_csv(index=False)
+                            st.download_button(
+                                label="📥 Download CSV",
+                                data=csv,
+                                file_name=f"sql_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                                mime="text/csv"
+                            )
+                    else:
+                        st.info("✅ Query executed successfully (no data returned)")
+                else:
+                    st.error(f"❌ **SQL execution failed**: {exec_result.get('error', 'Unknown error')}")
+                    
+        except Exception as e:
+            st.error(f"❌ **Error executing SQL**: {str(e)}")
+            
+        # Log the direct SQL execution
+        self.activity_logger.log_activity(
+            session_id=st.session_state.session_id,
+            activity_type='direct_sql_execution',
+            details={'sql': sql, 'output_formats': output_formats},
+            success=exec_result.get('success', False) if 'exec_result' in locals() else False
+        )
+    
     def _process_query(self, nlq: str, output_formats: List[str], generation_params: Dict, execution_params: Dict):
         """Process a natural language query."""
         query_start_time = time.time()
+        
+        # Check if input is already SQL
+        if self._is_sql_query(nlq):
+            st.warning("⚠️ **SQL Detected**: You entered SQL code instead of a natural language question.")
+            st.info("💡 **Try instead**: Ask in plain English like 'How many patients do we have?' or 'Show me all male patients'")
+            
+            # Show the SQL they entered for reference
+            st.code(nlq, language='sql')
+            
+            # Offer to execute it directly
+            if st.button("🚀 Execute this SQL directly"):
+                self._execute_sql_directly(nlq, output_formats, execution_params)
+            return
         
         # Log query start
         self.activity_logger.log_activity(
