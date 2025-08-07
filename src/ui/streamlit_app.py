@@ -488,6 +488,11 @@ class ClinicalNLQApp:
             
             with st.spinner("🗄️ Executing SQL query..."):
                 db_executor = DatabaseExecutor()
+                # Connect to database first
+                if not db_executor.connect():
+                    st.error("❌ **Database Connection Failed**: Unable to connect to the database.")
+                    return
+                
                 exec_result = db_executor.execute_query(sql, **execution_params)
                 
                 if exec_result['success']:
@@ -617,10 +622,29 @@ class ClinicalNLQApp:
                         try:
                             from nlq.database_executor import DatabaseExecutor
                             db_executor = DatabaseExecutor()
-                            exec_result = db_executor.execute_query(result['generated_sql'])
-                            result['execution'] = exec_result
+                            # Connect to database first
+                            if db_executor.connect():
+                                exec_result = db_executor.execute_query(result['generated_sql'])
+                                result['execution'] = exec_result
+                                
+                                # Add debug info for successful execution
+                                if exec_result.get('success'):
+                                    data = exec_result.get('data', [])
+                                    logger.info(f"✅ RAG query executed successfully: {len(data) if data else 0} rows returned")
+                                else:
+                                    logger.warning(f"⚠️ RAG query execution failed: {exec_result.get('error', 'Unknown error')}")
+                            else:
+                                error_msg = 'Failed to connect to database - check PostgreSQL service and credentials'
+                                logger.error(f"❌ Database connection failed for RAG query")
+                                result['execution'] = {'success': False, 'error': error_msg}
+                        except ImportError as e:
+                            error_msg = f'Failed to import DatabaseExecutor: {str(e)}'
+                            logger.error(f"❌ Import error: {error_msg}")
+                            result['execution'] = {'success': False, 'error': error_msg}
                         except Exception as e:
-                            result['execution'] = {'success': False, 'error': str(e)}
+                            error_msg = f'Database execution error: {str(e)}'
+                            logger.error(f"❌ Unexpected error during RAG query execution: {error_msg}")
+                            result['execution'] = {'success': False, 'error': error_msg}
                 else:
                     # Use traditional pipeline
                     result = self.pipeline.process_query(
@@ -658,9 +682,9 @@ class ClinicalNLQApp:
                         activity_type='query_success',
                         details={
                             'nlq': nlq,
-                            'query_id': result['query_id'],
-                            'rows_returned': result['metadata']['rows_returned'],
-                            'total_time': result['metadata']['total_time']
+                            'query_id': result.get('query_id', 'unknown'),
+                            'rows_returned': result.get('metadata', {}).get('rows_returned', 0),
+                            'total_time': result.get('metadata', {}).get('total_time', query_time)
                         },
                         success=True
                     )
@@ -698,6 +722,9 @@ class ClinicalNLQApp:
                 if error_msg == "'results'":
                     st.error("❌ **Result Display Error**: There was an issue displaying the query results. This might be due to a mismatch in result format.")
                     st.info("💡 **Suggestion**: Try refreshing the page and running your query again. If the issue persists, try using a simpler query format.")
+                elif error_msg == "'query_id'":
+                    st.error("❌ **Query ID Error**: There was an issue with query tracking. This is a system error that doesn't affect query functionality.")
+                    st.info("💡 **Suggestion**: Your query may have processed correctly. Check the results below or try running the query again.")
                 else:
                     st.error(f"❌ **Unexpected Error**: {error_msg}")
                 
@@ -784,9 +811,18 @@ class ClinicalNLQApp:
         if 'results' in result and 'formats' in result['results']:
             # Traditional pipeline result structure
             formats = result['results']['formats']
-        elif 'execution' in result and result['execution'].get('success'):
+        elif 'execution' in result:
             # RAG result structure with execution data
-            formats = {'table': result['execution']}
+            if result['execution'].get('success'):
+                formats = {'table': result['execution']}
+            else:
+                # Execution failed - show error
+                st.error(f"❌ **Query execution failed**: {result['execution'].get('error', 'Unknown database error')}")
+                st.info("💡 **Generated SQL was valid, but database execution failed. Check database connection.**")
+                if st.session_state.user_preferences['show_sql']:
+                    with st.expander("🔍 Generated SQL Query"):
+                        st.code(result['generated_sql'], language='sql')
+                return
         else:
             # No execution results to display
             st.info("📋 SQL generated successfully. Enable table output to see query results.")
