@@ -32,7 +32,14 @@ class QueryPreprocessor:
     def _build_mappings(self) -> List[QueryMapping]:
         """Build query mapping rules based on training data patterns."""
         return [
-            # Vaccine/Immunization queries
+            # Most specific patterns first - patients with more than X immunizations
+            QueryMapping(
+                pattern=r'how many patients?.*(received|got|had).*more than\s+(\d+).*(immunizations?|vaccines?)',
+                template='How many patients received more than {number} immunizations?',
+                variables={'number': ''},
+                confidence=0.95
+            ),
+            # Vaccine/Immunization queries (general)
             QueryMapping(
                 pattern=r'how many patients?.*(received|got|had).*(vaccine|vaccination|immuniz|shot)',
                 template='How many patients have received {vaccine_type}?',
@@ -225,12 +232,7 @@ class QueryPreprocessor:
                 variables={'number': ''},
                 confidence=0.9
             ),
-            QueryMapping(
-                pattern=r'how many patients?.*(received|got|had).*more than\s+(\d+).*(immunizations?|vaccines?)',
-                template='How many patients received more than {number} immunizations?',
-                variables={'number': ''},
-                confidence=0.9
-            ),
+
         ]
     
     def _build_medical_terms(self) -> Dict[str, List[str]]:

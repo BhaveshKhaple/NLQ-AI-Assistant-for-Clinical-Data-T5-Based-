@@ -332,15 +332,32 @@ Key relationships:
             # Validate generated SQL
             validation_result = self._validate_sql(generated_sql)
             
-            # If T5 model generated invalid SQL, try intelligent fallback first
+            # If T5 model generated invalid SQL, try fallback generators
             if not validation_result['is_valid']:
-                logger.warning(f"⚠️ T5 model generated invalid SQL, trying intelligent fallback...")
-                fallback_result = self.intelligent_fallback.generate_sql(nlq)
+                logger.warning(f"⚠️ T5 model generated invalid SQL, trying fallback generators...")
                 
-                # If intelligent fallback also fails, try basic fallback
-                if not fallback_result['validation']['is_valid']:
-                    logger.warning(f"⚠️ Intelligent fallback failed, trying basic fallback...")
-                    fallback_result = self.fallback_generator.generate_sql(nlq)
+                # Try both fallback generators and choose the best one
+                intelligent_result = self.intelligent_fallback.generate_sql(nlq)
+                basic_result = self.fallback_generator.generate_sql(nlq)
+                
+                # Choose the best fallback result
+                fallback_result = None
+                
+                # Prefer basic fallback if it's valid and has higher confidence
+                if (basic_result['validation']['is_valid'] and 
+                    basic_result.get('confidence', 0) >= intelligent_result.get('confidence', 0)):
+                    fallback_result = basic_result
+                    logger.info(f"✅ Using basic fallback (confidence: {basic_result.get('confidence', 0)})")
+                elif intelligent_result['validation']['is_valid']:
+                    fallback_result = intelligent_result
+                    logger.info(f"✅ Using intelligent fallback (confidence: {intelligent_result.get('confidence', 0)})")
+                elif basic_result['validation']['is_valid']:
+                    fallback_result = basic_result
+                    logger.info(f"✅ Using basic fallback as backup")
+                else:
+                    # Neither fallback worked
+                    logger.error(f"❌ Both fallback generators failed")
+                    fallback_result = basic_result  # Use basic as last resort
                 
                 if fallback_result['validation']['is_valid']:
                     logger.info(f"✅ Fallback generator produced valid SQL")
