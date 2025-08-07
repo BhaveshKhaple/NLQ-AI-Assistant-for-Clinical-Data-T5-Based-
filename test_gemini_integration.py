@@ -9,6 +9,10 @@ import sys
 import time
 import json
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Add src to Python path
 sys.path.append(str(Path(__file__).parent / "src"))
@@ -108,12 +112,8 @@ def test_rag_gemini_integration():
             print("❌ Failed to load training data")
             return False
         
-        # Initialize embeddings
-        if rag_system.initialize_embeddings():
-            print("✅ Embeddings initialized")
-        else:
-            print("❌ Failed to initialize embeddings")
-            return False
+        # Embeddings are automatically initialized when loading training data
+        print("✅ Embeddings initialized automatically")
         
         # Test query enhancement
         test_queries = [

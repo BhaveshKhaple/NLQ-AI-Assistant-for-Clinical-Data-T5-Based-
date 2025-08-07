@@ -18,7 +18,7 @@ except ImportError:
     GEMINI_AVAILABLE = False
     genai = None
 
-from .config_loader import ConfigLoader
+# from .config_loader import ConfigLoader  # Not needed for basic functionality
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -29,7 +29,16 @@ class GeminiLLMClient:
     
     def __init__(self, config_path: Optional[str] = None):
         """Initialize Gemini client."""
-        self.config = ConfigLoader(config_path).config
+        # Use default configuration
+        self.config = {
+            'gemini': {
+                'model_name': 'gemini-1.5-flash',
+                'temperature': 0.1,
+                'top_p': 0.8,
+                'top_k': 40,
+                'max_output_tokens': 2048
+            }
+        }
         self.model = None
         self.api_key = None
         self.model_name = "gemini-1.5-flash"  # Default model
