@@ -58,7 +58,7 @@ CREATE TABLE clinical_data.organizations (
     zip VARCHAR(10),
     latitude DECIMAL(10, 8),
     longitude DECIMAL(11, 8),
-    phone VARCHAR(20),
+    phone VARCHAR(50),
     revenue DECIMAL(15, 2),
     utilization INTEGER,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -90,7 +90,7 @@ CREATE TABLE clinical_data.payers (
     city VARCHAR(100),
     state VARCHAR(50),
     zip VARCHAR(10),
-    phone VARCHAR(20),
+    phone VARCHAR(50),
     amount_covered DECIMAL(15, 2),
     amount_uncovered DECIMAL(15, 2),
     revenue DECIMAL(15, 2),
@@ -561,24 +561,24 @@ $$ LANGUAGE plpgsql;
 -- =====================================================
 
 -- Create roles for different access levels
-CREATE ROLE clinical_readonly;
-CREATE ROLE clinical_analyst;
-CREATE ROLE clinical_admin;
+-- CREATE ROLE clinical_readonly;
+-- CREATE ROLE clinical_analyst;
+-- CREATE ROLE clinical_admin;
 
 -- Grant permissions to readonly role
-GRANT USAGE ON SCHEMA clinical_data TO clinical_readonly;
-GRANT SELECT ON ALL TABLES IN SCHEMA clinical_data TO clinical_readonly;
-GRANT SELECT ON ALL SEQUENCES IN SCHEMA clinical_data TO clinical_readonly;
+-- GRANT USAGE ON SCHEMA clinical_data TO clinical_readonly;
+-- GRANT SELECT ON ALL TABLES IN SCHEMA clinical_data TO clinical_readonly;
+-- GRANT SELECT ON ALL SEQUENCES IN SCHEMA clinical_data TO clinical_readonly;
 
 -- Grant permissions to analyst role (includes readonly + some modifications)
-GRANT clinical_readonly TO clinical_analyst;
-GRANT INSERT, UPDATE ON clinical_data.observations TO clinical_analyst;
-GRANT INSERT, UPDATE ON clinical_data.procedures TO clinical_analyst;
+-- GRANT clinical_readonly TO clinical_analyst;
+-- GRANT INSERT, UPDATE ON clinical_data.observations TO clinical_analyst;
+-- GRANT INSERT, UPDATE ON clinical_data.procedures TO clinical_analyst;
 
 -- Grant permissions to admin role (full access)
-GRANT ALL PRIVILEGES ON SCHEMA clinical_data TO clinical_admin;
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA clinical_data TO clinical_admin;
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA clinical_data TO clinical_admin;
+-- GRANT ALL PRIVILEGES ON SCHEMA clinical_data TO clinical_admin;
+-- GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA clinical_data TO clinical_admin;
+-- GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA clinical_data TO clinical_admin;
 
 -- Set default privileges for future objects
 ALTER DEFAULT PRIVILEGES IN SCHEMA clinical_data GRANT SELECT ON TABLES TO clinical_readonly;

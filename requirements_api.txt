@@ -1,31 +1,118 @@
-# Gemini RAG API Dependencies
-# Install with: pip install -r requirements_api.txt
+# 🌐 Clinical NLQ AI Assistant - API Server Requirements
+# Lightweight dependency list for API-only deployment
 
-# Core API framework
-fastapi>=0.104.0
-uvicorn[standard]>=0.24.0
-pydantic>=2.0.0
+# ============================================================================
+# CORE API DEPENDENCIES
+# ============================================================================
 
-# Google Gemini AI
-google-generativeai>=0.3.0
+# FastAPI web framework
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+starlette==0.47.2
+pydantic==2.11.7
+pydantic_core==2.33.2
 
-# Existing dependencies (if not already installed)
-sentence-transformers>=2.2.0
-scikit-learn>=1.3.0
-torch>=2.0.0
-transformers>=4.30.0
-streamlit>=1.28.0
-pandas>=2.0.0
-numpy>=1.24.0
-pyyaml>=6.0
-python-dotenv>=1.0.0
-psycopg2-binary>=2.9.0
-plotly>=5.15.0
+# ============================================================================
+# AI & NLP CORE
+# ============================================================================
 
-# Optional: OpenAI (for fallback)
-openai>=1.0.0
+# Google Gemini LLM integration
+google-generativeai==0.8.5
+google-ai-generativelanguage==0.6.15
+google-api-core==2.25.1
+google-auth==2.40.3
+googleapis-common-protos==1.70.0
 
-# Development dependencies
-pytest>=7.4.0
-httpx>=0.25.0  # For testing FastAPI
-requests>=2.31.0
+# Transformers for T5 model
+transformers==4.54.1
+torch==2.7.1
+tokenizers==0.21.4
+safetensors==0.5.3
+huggingface-hub==0.34.3
+
+# Sentence transformers for RAG
+sentence-transformers==5.1.0
+sentencepiece==0.2.0
+
+# ============================================================================
+# DATABASE & DATA PROCESSING
+# ============================================================================
+
+# PostgreSQL connectivity
+psycopg2-binary==2.9.10
+SQLAlchemy==2.0.42
+
+# Data processing
+pandas==2.3.1
+numpy==2.3.2
+scikit-learn==1.7.1
+
+# ============================================================================
+# UTILITIES & CONFIGURATION
+# ============================================================================
+
+# Environment configuration
+python-dotenv==1.1.1
+PyYAML==6.0.2
+
+# HTTP and networking
+requests==2.32.4
+aiohttp==3.12.15
+httptools==0.6.4
+
+# ============================================================================
+# SECURITY & VALIDATION
+# ============================================================================
+
+# JSON schema validation
+jsonschema==4.25.0
+jsonschema-specifications==2025.4.1
+
+# Security
+cryptography==45.0.5
+PyJWT==2.10.1
+
+# ============================================================================
+# SYSTEM DEPENDENCIES
+# ============================================================================
+
+# Core utilities
+click==8.2.1
+tqdm==4.67.1
+packaging==25.0
+typing_extensions==4.14.1
+
+# File handling
+filelock==3.18.0
+pathspec==0.12.1
+
+# ============================================================================
+# INSTALLATION NOTES
+# ============================================================================
+
+# This lightweight requirements file includes only essential dependencies for:
+# ✅ FastAPI REST API server
+# ✅ Google Gemini LLM integration
+# ✅ T5 model inference
+# ✅ RAG system functionality
+# ✅ PostgreSQL database connectivity
+# ✅ Basic data processing
+
+# To install:
+# pip install -r requirements_api.txt
+
+# For full application with Streamlit UI:
+# pip install -r requirements.txt
+
+# ============================================================================
+# DEPLOYMENT NOTES
+# ============================================================================
+
+# Start API server:
+# python start_gemini_api.py
+
+# API Documentation:
+# http://localhost:8000/docs
+
+# Health Check:
+# curl http://localhost:8000/health

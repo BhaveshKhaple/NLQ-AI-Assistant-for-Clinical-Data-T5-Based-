@@ -1,51 +1,341 @@
-# Machine Learning and NLP
-transformers>=4.20.0
-torch>=1.12.0
-datasets>=2.0.0
-tokenizers>=0.12.0
-huggingface-hub>=0.8.0
+# 🏥 Clinical Natural Language Query (NLQ) AI Assistant - Requirements
+# Complete dependency list for production deployment
 
-# Database
-psycopg2-binary>=2.9.0
-sqlalchemy>=1.4.0
-alembic>=1.8.0
+# ============================================================================
+# CORE MACHINE LEARNING & NLP DEPENDENCIES
+# ============================================================================
 
-# Data Processing
-pandas>=1.4.0
-numpy>=1.21.0
-scikit-learn>=1.1.0
-scipy>=1.8.0
+# Transformers and PyTorch for T5 model
+transformers==4.54.1
+torch==2.7.1
+tokenizers==0.21.4
+safetensors==0.5.3
 
-# Web Framework
-streamlit>=1.10.0
-streamlit-authenticator>=0.2.0
+# HuggingFace ecosystem
+huggingface-hub==0.34.3
+datasets==4.0.0
 
-# Visualization
-plotly>=5.0.0
-matplotlib>=3.5.0
-seaborn>=0.11.0
-networkx>=2.8.0
+# Sentence transformers for RAG embeddings
+sentence-transformers==5.1.0
+sentencepiece==0.2.0
 
-# Utilities
-python-dotenv>=0.20.0
-pyyaml>=6.0
-click>=8.0.0
-tqdm>=4.64.0
+# ============================================================================
+# AI INTEGRATION & API SERVICES
+# ============================================================================
 
-# Development and Testing
-pytest>=7.1.0
-pytest-cov>=3.0.0
-black>=22.0.0
-flake8>=4.0.0
-mypy>=0.950
+# Google Gemini LLM integration
+google-generativeai==0.8.5
+google-ai-generativelanguage==0.6.15
+google-api-core==2.25.1
+google-api-python-client==2.178.0
+google-auth==2.40.3
+google-auth-httplib2==0.2.0
+googleapis-common-protos==1.70.0
 
-# Optional: Voice Processing
-# azure-cognitiveservices-speech>=1.22.0
+# FastAPI for REST API server
+fastapi==0.116.1
+uvicorn==0.35.0
+starlette==0.47.2
+pydantic==2.11.7
+pydantic_core==2.33.2
 
-# Optional: Caching and Performance
-# redis>=4.3.0
-# celery>=5.2.0
+# HTTP and networking
+aiohttp==3.12.15
+aiohappyeyeballs==2.6.1
+aiosignal==1.4.0
+anyio==4.10.0
+h11==0.16.0
+httplib2==0.22.0
+httptools==0.6.4
+websockets==15.0.1
+watchfiles==1.1.0
 
-# Optional: Monitoring and Logging
-# prometheus-client>=0.14.0
-# structlog>=22.1.0
+# ============================================================================
+# DATABASE & DATA PROCESSING
+# ============================================================================
+
+# PostgreSQL database connectivity
+psycopg2-binary==2.9.10
+SQLAlchemy==2.0.42
+alembic==1.16.4
+
+# Data processing and analysis
+pandas==2.3.1
+numpy==2.3.2
+pyarrow==21.0.0
+scikit-learn==1.7.1
+scipy==1.16.1
+
+# ============================================================================
+# WEB FRAMEWORK & UI
+# ============================================================================
+
+# Streamlit web application
+streamlit==1.47.1
+streamlit-authenticator==0.4.2
+extra-streamlit-components==0.1.80
+
+# UI and visualization
+altair==5.5.0
+plotly==6.2.0
+matplotlib==3.10.5
+seaborn==0.13.2
+pydeck==0.9.1
+
+# ============================================================================
+# UTILITIES & CONFIGURATION
+# ============================================================================
+
+# Environment and configuration
+python-dotenv==1.1.1
+PyYAML==6.0.2
+toml==0.10.2
+
+# File and system utilities
+filelock==3.18.0
+fsspec==2025.3.0
+watchdog==6.0.0
+pathspec==0.12.1
+
+# ============================================================================
+# SECURITY & AUTHENTICATION
+# ============================================================================
+
+# Security and encryption
+cryptography==45.0.5
+bcrypt==4.3.0
+PyJWT==2.10.1
+cffi==1.17.1
+pycparser==2.22
+
+# Authentication and validation
+captcha==0.7.1
+
+# ============================================================================
+# NETWORKING & PROTOCOLS
+# ============================================================================
+
+# HTTP and web protocols
+requests==2.32.4
+urllib3==2.5.0
+certifi==2025.8.3
+charset-normalizer==3.4.2
+idna==3.10
+
+# Protocol buffers and gRPC
+protobuf==5.29.5
+proto-plus==1.26.1
+grpcio==1.74.0
+grpcio-status==1.71.2
+
+# ============================================================================
+# DATA SERIALIZATION & VALIDATION
+# ============================================================================
+
+# JSON schema and validation
+jsonschema==4.25.0
+jsonschema-specifications==2025.4.1
+referencing==0.36.2
+rpds-py==0.26.0
+
+# Data serialization
+dill==0.3.8
+multiprocess==0.70.16
+
+# ============================================================================
+# DEVELOPMENT & TESTING
+# ============================================================================
+
+# Testing framework
+pytest==8.4.1
+pytest-cov==6.2.1
+coverage==7.10.2
+
+# Code quality and formatting
+black==25.1.0
+flake8==7.3.0
+mypy==1.17.1
+mypy_extensions==1.1.0
+pycodestyle==2.14.0
+pyflakes==3.4.0
+
+# ============================================================================
+# SYSTEM & RUNTIME DEPENDENCIES
+# ============================================================================
+
+# Core Python utilities
+click==8.2.1
+colorama==0.4.6
+packaging==25.0
+setuptools==80.9.0
+six==1.17.0
+typing_extensions==4.14.1
+typing-inspection==0.4.1
+
+# Progress and logging
+tqdm==4.67.1
+blinker==1.9.0
+
+# Template and markup
+Jinja2==3.1.6
+MarkupSafe==3.0.2
+Mako==1.3.10
+
+# ============================================================================
+# SPECIALIZED LIBRARIES
+# ============================================================================
+
+# Mathematical and scientific computing
+sympy==1.14.0
+mpmath==1.3.0
+networkx==3.5
+
+# Image processing
+Pillow==11.3.0
+fonttools==4.59.0
+contourpy==1.3.3
+cycler==0.12.1
+kiwisolver==1.4.8
+
+# Parsing and text processing
+pyparsing==3.2.3
+regex==2025.7.34
+Pygments==2.19.2
+
+# ============================================================================
+# ASYNC & CONCURRENCY
+# ============================================================================
+
+# Async utilities
+attrs==25.3.0
+frozenlist==1.7.0
+multidict==6.6.3
+propcache==0.3.2
+yarl==1.20.1
+sniffio==1.3.1
+greenlet==3.2.3
+
+# Threading and parallel processing
+threadpoolctl==3.6.0
+joblib==1.5.1
+
+# ============================================================================
+# CACHING & PERFORMANCE
+# ============================================================================
+
+# Caching and performance
+cachetools==5.5.2
+xxhash==3.5.0
+tenacity==9.1.2
+
+# ============================================================================
+# VERSION CONTROL & GIT
+# ============================================================================
+
+# Git integration
+GitPython==3.1.45
+gitdb==4.0.12
+smmap==5.0.2
+
+# ============================================================================
+# DATE & TIME HANDLING
+# ============================================================================
+
+# Date and time utilities
+python-dateutil==2.9.0.post0
+pytz==2025.2
+tzdata==2025.2
+
+# ============================================================================
+# WEB SERVER & DEPLOYMENT
+# ============================================================================
+
+# Web server
+tornado==6.5.1
+uritemplate==4.2.0
+
+# ============================================================================
+# CRYPTOGRAPHY & SECURITY
+# ============================================================================
+
+# RSA and cryptographic utilities
+rsa==4.9.1
+pyasn1==0.6.1
+pyasn1_modules==0.4.2
+
+# ============================================================================
+# TESTING & CONFIGURATION
+# ============================================================================
+
+# Testing configuration
+iniconfig==2.1.0
+pluggy==1.6.0
+
+# Data compatibility
+narwhals==2.0.1
+platformdirs==4.3.8
+
+# ============================================================================
+# INSTALLATION NOTES
+# ============================================================================
+
+# To install all dependencies:
+# pip install -r requirements.txt
+
+# For development with additional tools:
+# pip install -r requirements.txt
+# pip install jupyter notebook ipykernel
+
+# For API server only (lighter installation):
+# pip install fastapi uvicorn google-generativeai psycopg2-binary pandas numpy
+
+# For minimal T5-only installation:
+# pip install transformers torch streamlit psycopg2-binary pandas numpy
+
+# ============================================================================
+# COMPATIBILITY NOTES
+# ============================================================================
+
+# Python Version: 3.10+
+# Operating System: Windows 10/11, macOS, Linux
+# RAM: Minimum 8GB, Recommended 16GB
+# Storage: Minimum 5GB free space
+
+# ============================================================================
+# OPTIONAL DEPENDENCIES (not included by default)
+# ============================================================================
+
+# For voice input (uncomment if needed):
+# azure-cognitiveservices-speech==1.30.0
+
+# For additional LLM support (uncomment if needed):
+# openai>=1.0.0
+
+# For Docker deployment (uncomment if needed):
+# gunicorn==21.2.0
+
+# For advanced visualization (uncomment if needed):
+# bokeh>=3.0.0
+# dash>=2.0.0
+
+# ============================================================================
+# SECURITY CONSIDERATIONS
+# ============================================================================
+
+# This requirements.txt includes all dependencies for:
+# ✅ T5 model inference
+# ✅ Google Gemini LLM integration  
+# ✅ RAG system with embeddings
+# ✅ PostgreSQL database connectivity
+# ✅ Streamlit web interface
+# ✅ FastAPI REST API server
+# ✅ Comprehensive testing suite
+# ✅ Development tools and linting
+# ✅ Security and authentication
+# ✅ Data processing and visualization
+
+# For production deployment, consider:
+# - Pinning exact versions for reproducibility
+# - Using virtual environments
+# - Regular security updates
+# - Monitoring for vulnerabilities

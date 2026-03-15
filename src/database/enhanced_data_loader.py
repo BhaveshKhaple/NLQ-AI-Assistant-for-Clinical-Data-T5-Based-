@@ -203,6 +203,93 @@ class EnhancedDataLoader:
                 'TOTALCOST': 'total_cost',
                 'REASONCODE': 'reason_code',
                 'REASONDESCRIPTION': 'reason_description'
+            },
+            'procedures': {
+                'DATE': 'date',
+                'PATIENT': 'patient_id',
+                'ENCOUNTER': 'encounter_id',
+                'CODE': 'code',
+                'DESCRIPTION': 'description',
+                'BASE_COST': 'base_cost',
+                'REASONCODE': 'reason_code',
+                'REASONDESCRIPTION': 'reason_description'
+            },
+            'observations': {
+                'DATE': 'date',
+                'PATIENT': 'patient_id',
+                'ENCOUNTER': 'encounter_id',
+                'CATEGORY': 'category',
+                'CODE': 'code',
+                'DESCRIPTION': 'description',
+                'VALUE': 'value',
+                'UNITS': 'units',
+                'TYPE': 'type'
+            },
+            'immunizations': {
+                'DATE': 'date',
+                'PATIENT': 'patient_id',
+                'ENCOUNTER': 'encounter_id',
+                'CODE': 'code',
+                'DESCRIPTION': 'description',
+                'BASE_COST': 'base_cost'
+            },
+            'allergies': {
+                'START': 'start_date',
+                'STOP': 'stop_date',
+                'PATIENT': 'patient_id',
+                'ENCOUNTER': 'encounter_id',
+                'CODE': 'code',
+                'SYSTEM': 'system',
+                'DESCRIPTION1': 'description1',
+                'DESCRIPTION2': 'description2',
+                'SEVERITY1': 'severity1',
+                'SEVERITY2': 'severity2',
+                'REACTION1': 'reaction1',
+                'REACTION2': 'reaction2',
+                'CATEGORY': 'category'
+            },
+            'care_plans': {
+                'Id': 'id',
+                'START': 'start_date',
+                'STOP': 'stop_date',
+                'PATIENT': 'patient_id',
+                'ENCOUNTER': 'encounter_id',
+                'CODE': 'code',
+                'DESCRIPTION': 'description',
+                'REASONCODE': 'reason_code',
+                'REASONDESCRIPTION': 'reason_description'
+            },
+            'devices': {
+                'START': 'start_date',
+                'STOP': 'stop_date',
+                'PATIENT': 'patient_id',
+                'ENCOUNTER': 'encounter_id',
+                'CODE': 'code',
+                'DESCRIPTION': 'description',
+                'UDI': 'udi'
+            },
+            'imaging_studies': {
+                'Id': 'id',
+                'DATE': 'date',
+                'PATIENT': 'patient_id',
+                'ENCOUNTER': 'encounter_id',
+                'SERIES_UID': 'series_uid',
+                'BODYSITE_CODE': 'body_site_code',
+                'BODYSITE_DESCRIPTION': 'body_site_description',
+                'MODALITY_CODE': 'modality_code',
+                'MODALITY_DESCRIPTION': 'modality_description',
+                'INSTANCE_UID': 'instance_uid',
+                'SOP_CODE': 'sop_code',
+                'SOP_DESCRIPTION': 'sop_description',
+                'PROCEDURE_CODE': 'procedure_code'
+            },
+            'supplies': {
+                'DATE': 'date',
+                'PATIENT': 'patient_id',
+                'ENCOUNTER': 'encounter_id',
+                'CODE': 'code',
+                'DESCRIPTION': 'description',
+                'QUANTITY': 'quantity'
             }
         }
     
@@ -331,6 +418,11 @@ class EnhancedDataLoader:
                 if dropped_count > 0:
                     logger.warning(f"Dropped {dropped_count} rows with null primary key {pk_col}")
         
+        # Only keep columns that belong to the table schema
+        valid_columns = [col for col in df.columns if col in schema.get('columns', {})]
+        if valid_columns:
+            df = df[valid_columns]
+            
         logger.info(f"Dataframe cleaned: {len(df)} rows remaining")
         return df
     

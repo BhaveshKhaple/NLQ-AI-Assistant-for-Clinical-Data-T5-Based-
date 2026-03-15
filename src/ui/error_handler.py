@@ -342,13 +342,16 @@ class UIErrorHandler:
             
             col1, col2 = st.columns(2)
             
+            import time
+            unique_key_base = f"error_btn_{int(time.time()*1000)}_{hash(str(error))}"
+            
             with col1:
-                if st.button("📧 Report Error", help="Send error report to support"):
+                if st.button("📧 Report Error", help="Send error report to support", key=f"{unique_key_base}_report"):
                     self._create_error_report(error, context, error_type)
                     st.success("✅ Error report created!")
             
             with col2:
-                if st.button("📋 Copy Error Details", help="Copy error details to clipboard"):
+                if st.button("📋 Copy Error Details", help="Copy error details to clipboard", key=f"{unique_key_base}_copy"):
                     error_details = self._format_error_for_copy(error, context, error_type)
                     st.code(error_details, language='text')
                     st.info("📋 Error details displayed above - you can select and copy them")

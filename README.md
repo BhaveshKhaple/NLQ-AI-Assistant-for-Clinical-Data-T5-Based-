@@ -341,8 +341,9 @@ When users accidentally enter SQL instead of natural language:
    DB_HOST=localhost
    DB_PORT=5432
    DB_NAME=medical
-   DB_USER=postgres
+   DB_USERNAME=postgres
    DB_PASSWORD=Pass@123
+   DB_SCHEMA=clinical_data
    
    # Application Configuration
    APP_ENV=development
@@ -470,49 +471,12 @@ Show me the relationship between patients and their care plans
 - **Visualization**: matplotlib, seaborn, plotly
 - **Environment**: venv, pip, Docker
 
-### Key Dependencies
-```
-# Machine Learning and NLP
-transformers>=4.20.0
-torch>=1.12.0
-datasets>=2.0.0
-sentence-transformers>=2.0.0
-
-# AI Integration
-google-generativeai>=0.8.0
-openai>=1.0.0  # Optional
-
-# API Server
-fastapi>=0.100.0
-uvicorn[standard]>=0.20.0
-
-# Database
-psycopg2-binary>=2.9.0
-sqlalchemy>=1.4.0
-
-# Data Processing
-pandas>=1.4.0
-numpy>=1.21.0
-scikit-learn>=1.1.0
-
-# Web Framework
-streamlit>=1.10.0
-
-# Visualization
-plotly>=5.0.0
-matplotlib>=3.5.0
-seaborn>=0.11.0
-
-# Environment
-python-dotenv>=1.0.0
-```
-
 ## 📊 Performance Metrics
 
 ### System Performance
 - **Query Success Rate**: 90%+
 - **Average Response Time**: 0.0045 seconds
-- **Database Size**: 93 MB with 17,573+ clinical records
+- **Database Size**: 93 MB with 34,880+ clinical records
 - **Model Accuracy**: 85%+ for common clinical queries
 - **Data Quality Score**: 100%
 
@@ -531,7 +495,7 @@ python-dotenv>=1.0.0
 - **Database**: medical
 - **Schema**: clinical_data
 - **Total Tables**: 19 (7 core clinical tables)
-- **Total Records**: 17,573+
+- **Total Records**: 34,880+
 - **Size**: 93 MB
 - **Data Quality**: 100% validation score
 
@@ -542,6 +506,8 @@ python-dotenv>=1.0.0
 | encounters | 7,217 | Medical encounters and visits |
 | conditions | 3,945 | Diagnoses and medical conditions |
 | medications | 5,750 | Prescribed medications and treatments |
+| immunizations | 1,710 | Vaccination records (27 vaccine types) |
+| procedures | 17,861 | Medical procedures and treatments |
 | providers | 272 | Healthcare providers and practitioners |
 | organizations | 272 | Healthcare organizations and facilities |
 | payers | 10 | Insurance and payment information |
@@ -592,7 +558,7 @@ The system now supports **three different AI approaches** for maximum flexibilit
 ### Training Dataset
 - **Source**: Synthea synthetic patient data
 - **Format**: Natural language questions paired with SQL queries
-- **Size**: 1000+ training examples
+- **Size**: 4,588+ training examples
 - **Validation**: 200+ test examples
 - **Coverage**: Demographics, conditions, medications, procedures, encounters
 
@@ -679,9 +645,6 @@ healthca/
 ├── start_app.bat                 # Windows batch launcher
 ├── start_app.ps1                 # PowerShell launcher
 ├── start_gemini_api.py           # Gemini API server launcher
-├── test_gemini_integration.py    # Comprehensive Gemini testing
-├── DATABASE_EXPLORER_README.md   # Database Explorer documentation
-├── GEMINI_INTEGRATION_GUIDE.md   # Gemini integration documentation
 ├── requirements_api.txt          # API server dependencies
 ├── config/
 │   └── config.yaml              # Application configuration
@@ -689,14 +652,10 @@ healthca/
 │   ├── database/               # Database operations and setup
 │   │   ├── schema.sql          # Database schema definition
 │   │   ├── enhanced_data_loader.py    # Data loading with validation
-│   │   ├── comprehensive_validator.py # Quality assurance
-│   │   ├── nlq_query_tester.py # Performance testing
-│   │   └── test_connection.py  # Database connectivity test
+│   │   └── comprehensive_validator.py # Quality assurance
 │   ├── models/                 # ML models and training
 │   │   ├── data_loader.py      # Training data management
-│   │   ├── generate_training_data.py  # Training data generation
-│   │   ├── validate_training_data.py  # Data validation
-│   │   └── test_trained_model.py      # Model testing
+│   │   └── generate_training_data.py  # Training data generation
 │   ├── nlq/                    # Natural Language Query engine
 │   │   ├── inference_engine.py # T5 model inference
 │   │   ├── rag_inference_engine.py # RAG-enhanced inference with multi-AI
@@ -723,14 +682,18 @@ healthca/
 ├── data/                       # Data storage
 │   ├── raw/                    # Raw data files
 │   └── processed/              # Processed data
+│       ├── database_schema.json # Enhanced schema descriptions
+│       └── final_merged_dataset/ # Training data
 ├── output/                     # Generated outputs
 │   └── csv/                    # Clinical data in CSV format
 │       ├── conditions.csv      # Medical conditions (3,945 records)
 │       ├── encounters.csv      # Patient encounters (7,217 records)
 │       ├── medications.csv     # Medication records (5,750 records)
+│       ├── immunizations.csv   # Vaccination records (1,710 records)
 │       ├── organizations.csv   # Healthcare organizations (272 records)
 │       ├── patients.csv        # Patient demographics (107 records)
 │       ├── payers.csv         # Insurance payers (10 records)
+│       ├── procedures.csv      # Medical procedures (17,861 records)
 │       └── providers.csv       # Healthcare providers (272 records)
 ├── models/                     # Model storage
 │   └── trained/               # Trained model checkpoints
@@ -788,7 +751,7 @@ healthca/
 - ✅ Query performance testing and optimization
 
 **Key Metrics Achieved**:
-- **Database Size**: 93 MB with 17,573+ clinical records
+- **Database Size**: 93 MB with 34,880+ clinical records
 - **Data Quality Score**: 100%
 - **Referential Integrity**: 100% (10/10 checks passed)
 - **Query Performance**: Average 0.0045s execution time
@@ -901,7 +864,7 @@ List patients with high blood pressure medication
 
 ### Local Development
 ```bash
-streamlit run app.py
+streamlit run src/ui/streamlit_app.py
 ```
 
 ### Docker Deployment
@@ -924,7 +887,7 @@ docker run -p 8501:8501 clinical-nlq
 1. Check if Python is installed: `python --version`
 2. Ensure virtual environment is activated
 3. Try running: `pip install -r requirements.txt`
-4. Use a different port: `streamlit run app.py --server.port 8502`
+4. Use a different port: `streamlit run src/ui/streamlit_app.py --server.port 8502`
 
 #### Database Connection Issues
 - The application works without a database for testing
@@ -941,6 +904,61 @@ docker run -p 8501:8501 clinical-nlq
 - Ensure the trained model exists in `models/trained/t5_clinical_model/`
 - Check if you have sufficient disk space
 - Verify PyTorch installation: `python -c "import torch; print(torch.__version__)"`
+
+#### Gemini API Issues
+- **Quota Exceeded**: Check your daily API limits (50 requests/day for free tier)
+- **API Key**: Verify your GEMINI_API_KEY is set correctly in .env
+- **Fallback**: System automatically falls back to T5 model when Gemini fails
+
+## 🔧 Recent Bug Fixes & Improvements
+
+### ✅ **RESOLVED: Critical Error Fixes (January 8, 2025)**
+
+#### **1. 'results' KeyError Fix**
+- **Issue**: `Unexpected error: 'results'` when using RAG system
+- **Root Cause**: RAG results had different structure than traditional pipeline
+- **Fix**: Enhanced result structure detection for both RAG and traditional formats
+- **Status**: ✅ **FULLY RESOLVED**
+
+#### **2. 'query_id' KeyError Fix**
+- **Issue**: `Unexpected Error: 'query_id'` in activity logging
+- **Root Cause**: Direct access to missing 'query_id' key in RAG results
+- **Fix**: Safe dictionary access with default values
+- **Status**: ✅ **FULLY RESOLVED**
+
+#### **3. Table Output Display Fix**
+- **Issue**: "Enable table output to see query results" even when enabled
+- **Root Cause**: DatabaseExecutor not calling `connect()` before execution
+- **Fix**: Proper database connection sequence in all execution paths
+- **Status**: ✅ **FULLY RESOLVED**
+
+#### **4. Vaccine Query Schema Fix**
+- **Issue**: `column "vaccine_name" does not exist` error
+- **Root Cause**: AI generating SQL with wrong column names
+- **Fix**: Enhanced schema descriptions for immunizations table
+- **Status**: ✅ **FULLY RESOLVED**
+
+#### **5. Database Execution Failed Fix**
+- **Issue**: "Generated SQL was valid, but database execution failed"
+- **Root Cause**: Gemini API quota exceeded (429 error) with poor error messaging
+- **Fix**: Enhanced error handling with specific quota messages and automatic fallback
+- **Status**: ✅ **FULLY RESOLVED**
+
+### 🎯 **Error Handling Improvements**
+
+#### **Enhanced Error Messages**
+- **Before**: Generic "Unexpected error" messages
+- **After**: Specific, actionable error messages with solutions
+
+#### **Automatic Fallbacks**
+- **API Quota Exceeded**: Automatically switches to T5 model
+- **Connection Failures**: Clear guidance for database issues
+- **Schema Mismatches**: Helpful suggestions for query corrections
+
+#### **User-Friendly Guidance**
+- **Clear Explanations**: Users understand what went wrong
+- **Actionable Solutions**: Specific steps to resolve issues
+- **Helpful Context**: Background information for better understanding
 
 ## 🤝 Contributing
 
@@ -978,6 +996,13 @@ For questions, issues, or contributions, please:
 - **💡 Intelligent User Guidance**: Clear feedback and helpful query examples
 - **📊 Enhanced Context Building**: Rich schema information for better accuracy
 - **🎯 Improved Column/Table Recognition**: Precise database entity identification
+
+### **✅ COMPLETED: Comprehensive Error Resolution**
+- **🔧 KeyError Fixes**: Resolved 'results' and 'query_id' errors
+- **🗄️ Database Connection**: Fixed table output display issues
+- **💉 Schema Corrections**: Fixed vaccine query column mapping
+- **🤖 API Quota Handling**: Enhanced Gemini API error management
+- **💡 User Experience**: Clear error messages and automatic fallbacks
 
 ### **🎯 Future Enhancements**
 
@@ -1028,7 +1053,7 @@ This system provides **three powerful ways** to interact with clinical data usin
 | **Reliability** | ⭐⭐⭐⭐ High | ⭐⭐⭐⭐ Good | ⭐⭐⭐⭐⭐ Maximum |
 
 ### **📊 Production-Ready Features**
-- ✅ **17,573+ Clinical Records** across 7 core medical tables
+- ✅ **34,880+ Clinical Records** across 19 medical tables
 - ✅ **4,588 Training Examples** with RAG-enhanced processing
 - ✅ **360+ Schema Descriptions** with database context embeddings
 - ✅ **Smart SQL Detection** with automatic input type recognition
@@ -1048,10 +1073,10 @@ This system provides **three powerful ways** to interact with clinical data usin
 
 ## 🎉 **Ready to Transform Clinical Data Access**
 
-**This Clinical NLQ AI Assistant represents a complete, production-ready solution** that bridges the gap between healthcare professionals and complex clinical databases. With cutting-edge AI integration, schema-enhanced RAG system, smart input detection, and comprehensive testing, it's ready to revolutionize how medical data is accessed and analyzed.
+**This Clinical NLQ AI Assistant represents a complete, production-ready solution** that bridges the gap between healthcare professionals and complex clinical databases. With cutting-edge AI integration, schema-enhanced RAG system, smart input detection, comprehensive error handling, and extensive testing, it's ready to revolutionize how medical data is accessed and analyzed.
 
 **🚀 Start exploring your clinical data with the power of intelligent natural language processing today!**
 
 ---
 
-*This project represents a complete implementation of a Clinical Natural Language Query AI Assistant, from problem definition through production deployment with advanced AI integration. All phases have been successfully completed with comprehensive testing and validation.*
+*This project represents a complete implementation of a Clinical Natural Language Query AI Assistant, from problem definition through production deployment with advanced AI integration. All phases have been successfully completed with comprehensive testing, validation, and error resolution.*
